@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// ──────────────────────────── Tenancy / Auth ────────────────────────────
+
+// Owners (role=ADMIN, ownerId=null) are tenant roots.
+// Sub-users (role=USER, ownerId=<owner.id>) belong to that tenant.
+// Owners log in by email; sub-users log in by username (globally unique).
+model User {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  username     String?  @unique
+  password     String
+  name         String?
+  role         Role     @default(USER)
+  active       Boolean  @default(true)
+  refreshToken String?
+
+  ownerId      String?
+  owner        User?    @relation("Tenancy", fields: [ownerId], references: [id], onDelete: Cascade)
+  subUsers     User[]   @relation("Tenancy")
+
+  permissions  Json?
+
+  posts        Post[]
+  customers    Customer[]
+  products     Product[]
+  partners     Partner[]
+  campaigns    Campaign[]
+  assets       Asset[]
+  uploadedFiles File[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+}
+
+// ──────────────────────────── CRM domain ────────────────────────────
+//
+// Each top-level entity has `ownerId` = tenant id (the owner User's id),
+// so all members of the tenant see the same data.
+//
+// Nested arrays (staff, tasks, taskGroups, files, productLinks, ...) are
+// stored as JSONB columns to keep the API surface small and match what
+// the frontend already consumes. Customer audit logs are the exception —
+// they're a separate table so server-side appends are race-safe.
+
+model Customer {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Core fields
+  name         String
+  industry     String?
+  contact      String?
+  email        String?
+  phone        String?
+  address      String?
+  vatTin       String?
+  stage        String   @default("Prospect")
+
+  // Nested collections — JSON shape mirrors StoreContext
+  staff        Json     @default("[]")
+  tasks        Json     @default("[]")
+  taskGroups   Json     @default("[]")
+  files        Json     @default("[]")
+  productLinks Json     @default("[]")
+
+  logs         CustomerLog[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model CustomerLog {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  ts         DateTime @default(now())
+  type       String
+  message    String
+  meta       Json?
+
+  @@index([customerId])
+  @@index([ts])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name      String
+  type      String   @default("Service")
+  price     Float    @default(0)
+
+  income    Json     @default("[]")
+  expenses  Json     @default("[]")
+  assets    Json     @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Partner {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name      String
+  company   String?
+  role      String?
+  email     String?
+  phone     String?
+
+  tasks      Json    @default("[]")
+  activities Json    @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  productId   String?
+  startDate   String?
+  endDate     String?
+  status      String   @default("Planning")
+
+  todos       Json     @default("[]")
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name      String
+  category  String?
+  assignee  String?
+  serial    String?
+  status    String   @default("In use")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+// File uploads. Saved to disk under FILE_STORAGE_DIR; metadata kept here.
+// `entityType`/`entityId` is a soft pointer for cleanup/auditing
+// (e.g. "customer" / customer.id). The owning JSON column on the parent
+// stores [{ id: file.id, description, name, ... }] for display.
+model File {
+  id          String   @id @default(cuid())
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  uploadedBy  String?
+
+  name        String
+  mimeType    String
+  size        Int
+  storagePath String
+
+  entityType  String?
+  entityId    String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([entityType, entityId])
+}
