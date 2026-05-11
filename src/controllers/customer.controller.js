@@ -6,7 +6,17 @@ import { tenantIdOf } from '../utils/tenant.js';
 // Nested JSON arrays (tasks/staff/files/...) generate their own
 // per-action logs at higher granularity from the frontend's existing
 // "appendCustomerLog" call paths, so we don't double-log them here.
-const LOGGABLE_TOP_FIELDS = ['name', 'industry', 'contact', 'email', 'phone', 'address', 'vatTin', 'stage'];
+const LOGGABLE_TOP_FIELDS = ['name', 'industry', 'contact', 'email', 'phone', 'address', 'vatTin', 'stage', 'groupId'];
+
+// Reject groupId values that don't belong to the caller's tenant.
+async function ensureGroupBelongsToTenant(tenantId, groupId) {
+  if (!groupId) return;
+  const g = await prisma.customerGroup.findFirst({
+    where: { id: groupId, ownerId: tenantId },
+    select: { id: true },
+  });
+  if (!g) throw ApiError.badRequest('Unknown groupId for this tenant');
+}
 
 function customerWithLogs(customer) {
   if (!customer) return customer;
@@ -41,6 +51,7 @@ export async function getCustomer(req, res) {
 
 export async function createCustomer(req, res) {
   const tenantId = tenantIdOf(req.user);
+  await ensureGroupBelongsToTenant(tenantId, req.body.groupId);
   const item = await prisma.customer.create({
     data: { ...req.body, ownerId: tenantId },
     include: { logs: true },
@@ -63,6 +74,7 @@ export async function updateCustomer(req, res) {
   if (!existing) throw ApiError.notFound('Customer not found');
 
   const data = { ...req.body };
+  if ('groupId' in data) await ensureGroupBelongsToTenant(tenantId, data.groupId);
 
   // Detect changed top-level fields for the audit log.
   const changedFields = LOGGABLE_TOP_FIELDS.filter(

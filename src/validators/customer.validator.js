@@ -16,6 +16,7 @@ const customerCore = {
   address: z.string().max(500).nullable().optional(),
   vatTin: z.string().max(80).nullable().optional(),
   stage: z.string().max(40).optional(),
+  groupId: z.string().min(1).nullable().optional(),
   staff: jsonArray.optional(),
   tasks: jsonArray.optional(),
   taskGroups: jsonArray.optional(),

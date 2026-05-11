@@ -33,13 +33,14 @@ model User {
 
   permissions  Json?
 
-  posts        Post[]
-  customers    Customer[]
-  products     Product[]
-  partners     Partner[]
-  campaigns    Campaign[]
-  assets       Asset[]
-  uploadedFiles File[]
+  posts          Post[]
+  customers      Customer[]
+  customerGroups CustomerGroup[]
+  products       Product[]
+  partners       Partner[]
+  campaigns      Campaign[]
+  assets         Asset[]
+  uploadedFiles  File[]
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -75,6 +76,10 @@ model Customer {
   ownerId      String
   owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  // Optional grouping (e.g. "Strategic", "SMB", "Q4 launch")
+  groupId      String?
+  group        CustomerGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
   // Core fields
   name         String
   industry     String?
@@ -96,6 +101,20 @@ model Customer {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([groupId])
+}
+
+model CustomerGroup {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  customers Customer[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([ownerId])
 }
@@ -142,6 +161,7 @@ model Partner {
   role      String?
   email     String?
   phone     String?
+  cardImage Json?
 
   tasks      Json    @default("[]")
   activities Json    @default("[]")
