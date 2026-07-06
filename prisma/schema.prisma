@@ -89,6 +89,8 @@ model Customer {
   address      String?
   vatTin       String?
   stage        String   @default("Prospect")
+  profileImage Json?
+  pinned       Boolean  @default(false)
 
   // Nested collections — JSON shape mirrors StoreContext
   staff        Json     @default("[]")
@@ -140,6 +142,7 @@ model Product {
   name      String
   type      String   @default("Service")
   price     Float    @default(0)
+  logo      Json?
 
   income    Json     @default("[]")
   expenses  Json     @default("[]")
@@ -156,12 +159,14 @@ model Partner {
   ownerId   String
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  name      String
-  company   String?
-  role      String?
-  email     String?
-  phone     String?
-  cardImage Json?
+  name        String
+  company     String?
+  role        String?
+  email       String?
+  phone       String?
+  telegram    String?
+  cardImage   Json?
+  telegramQr  Json?
 
   tasks      Json    @default("[]")
   activities Json    @default("[]")
@@ -202,6 +207,7 @@ model Asset {
   assignee  String?
   serial    String?
   status    String   @default("In use")
+  photos    Json     @default("[]")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

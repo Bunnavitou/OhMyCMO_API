@@ -30,7 +30,7 @@ function setRefreshCookie(res, token) {
     secure: env.COOKIE_SECURE,
     sameSite: env.COOKIE_SAME_SITE,
     path: '/api/auth',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 10 * 365 * 24 * 60 * 60 * 1000,
   });
 }
 

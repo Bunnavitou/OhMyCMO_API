@@ -6,10 +6,14 @@ export const idParamSchema = z.object({ params: idParam });
 const jsonArray = z.array(z.unknown());
 const cardImageSchema = z
   .object({
+    fileId: z.string().min(1).optional(),
+    dataUrl: z.string().min(1).optional(),
     name: z.string().max(255).optional(),
     type: z.string().max(120).optional(),
     size: z.number().nonnegative().optional(),
-    dataUrl: z.string().min(1),
+  })
+  .refine((v) => !!(v.fileId || v.dataUrl), {
+    message: 'image must include fileId or dataUrl',
   })
   .nullable()
   .optional();
@@ -20,7 +24,9 @@ const partnerCore = {
   role: z.string().max(120).nullable().optional(),
   email: z.string().email().nullable().or(z.literal('')).optional(),
   phone: z.string().max(40).nullable().optional(),
+  telegram: z.string().max(120).nullable().optional(),
   cardImage: cardImageSchema,
+  telegramQr: cardImageSchema,
   tasks: jsonArray.optional(),
   activities: jsonArray.optional(),
 };

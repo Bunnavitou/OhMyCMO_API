@@ -37,7 +37,7 @@ export async function listCustomers(req, res) {
   const items = await prisma.customer.findMany({
     where: { ownerId: tenantId },
     include: { logs: { orderBy: { ts: 'desc' } } },
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
   });
   res.json({ success: true, data: { items: items.map(customerWithLogs) } });
 }

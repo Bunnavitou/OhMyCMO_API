@@ -7,6 +7,16 @@ export const idParamSchema = z.object({ params: idParam });
 // shape — the frontend is the source of truth for nested structure.
 const jsonArray = z.array(z.unknown());
 
+const profileImageSchema = z
+  .object({
+    name: z.string().max(255).optional(),
+    type: z.string().max(120).optional(),
+    size: z.number().nonnegative().optional(),
+    dataUrl: z.string().min(1),
+  })
+  .nullable()
+  .optional();
+
 const customerCore = {
   name: z.string().min(1).max(200),
   industry: z.string().max(120).nullable().optional(),
@@ -17,6 +27,8 @@ const customerCore = {
   vatTin: z.string().max(80).nullable().optional(),
   stage: z.string().max(40).optional(),
   groupId: z.string().min(1).nullable().optional(),
+  profileImage: profileImageSchema,
+  pinned: z.boolean().optional(),
   staff: jsonArray.optional(),
   tasks: jsonArray.optional(),
   taskGroups: jsonArray.optional(),

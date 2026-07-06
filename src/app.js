@@ -22,8 +22,8 @@ export function createApp() {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '25mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
   app.use(cookieParser());
   app.use(morgan(env.isDev ? 'dev' : 'combined'));
 
