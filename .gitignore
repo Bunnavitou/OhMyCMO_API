@@ -12,3 +12,4 @@ coverage
 .vscode
 .idea
 prisma/migrations/dev.db*
+uploads/
