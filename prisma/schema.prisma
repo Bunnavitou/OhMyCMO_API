@@ -92,6 +92,14 @@ model Customer {
   profileImage Json?
   pinned       Boolean  @default(false)
 
+  // Invoice email defaults (used to pre-fill the New Invoice email section)
+  billingEmail  String?
+  emailCc       Json?   // optional list of default Cc addresses: ["a@x.com", ...]
+  emailTemplate Json?   // optional per-customer override: { subject, body }
+
+  // Task email settings bound to this customer (Email tab in the detail view).
+  taskEmail     Json?   // { to, cc: [...], subject, body }
+
   // Nested collections — JSON shape mirrors StoreContext
   staff        Json     @default("[]")
   tasks        Json     @default("[]")

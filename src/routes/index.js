@@ -10,6 +10,7 @@ import partnerRoutes from './partner.routes.js';
 import campaignRoutes from './campaign.routes.js';
 import assetRoutes from './asset.routes.js';
 import fileRoutes from './file.routes.js';
+import zohoRoutes from './zoho.routes.js';
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use('/partners', partnerRoutes);
 router.use('/campaigns', campaignRoutes);
 router.use('/assets', assetRoutes);
 router.use('/files', fileRoutes);
+router.use('/zoho', zohoRoutes);
 
 export default router;
