@@ -6,14 +6,10 @@ const usernameSchema = z
   .max(40)
   .regex(/^[a-zA-Z0-9._-]+$/, 'Username may contain letters, digits, dot, underscore, dash');
 
-const permissionsSchema = z.object({
-  customers: z.boolean().optional(),
-  products: z.boolean().optional(),
-  partners: z.boolean().optional(),
-  marketing: z.boolean().optional(),
-  assets: z.boolean().optional(),
-  subUsers: z.boolean().optional(),
-}).partial();
+// Menu access keys (opt-in) plus per-menu action abilities (opt-out, dotted
+// keys like 'billing.send'). Accept any string→boolean map so new abilities
+// don't require a validator change.
+const permissionsSchema = z.record(z.boolean());
 
 export const createSubUserSchema = z.object({
   body: z.object({

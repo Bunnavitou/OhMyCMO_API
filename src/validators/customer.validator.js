@@ -65,6 +65,7 @@ const customerCore = {
   tasks: jsonArray.optional(),
   taskGroups: jsonArray.optional(),
   files: jsonArray.optional(),
+  agreements: jsonArray.optional(),
   productLinks: jsonArray.optional(),
 };
 

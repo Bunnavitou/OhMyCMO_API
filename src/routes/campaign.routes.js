@@ -17,6 +17,6 @@ router.get('/', asyncHandler(crud.list));
 router.get('/:id', validate(idParamSchema), asyncHandler(crud.get));
 router.post('/', validate(createCampaignSchema), asyncHandler(crud.create));
 router.patch('/:id', validate(updateCampaignSchema), asyncHandler(crud.update));
-router.delete('/:id', validate(idParamSchema), asyncHandler(crud.remove));
+router.delete('/:id', requirePermission('marketing.delete'), validate(idParamSchema), asyncHandler(crud.remove));
 
 export default router;

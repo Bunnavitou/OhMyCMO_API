@@ -17,6 +17,6 @@ router.get('/', asyncHandler(crud.list));
 router.get('/:id', validate(idParamSchema), asyncHandler(crud.get));
 router.post('/', validate(createProductSchema), asyncHandler(crud.create));
 router.patch('/:id', validate(updateProductSchema), asyncHandler(crud.update));
-router.delete('/:id', validate(idParamSchema), asyncHandler(crud.remove));
+router.delete('/:id', requirePermission('billing.delete'), validate(idParamSchema), asyncHandler(crud.remove));
 
 export default router;

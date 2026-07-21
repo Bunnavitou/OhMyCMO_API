@@ -17,6 +17,6 @@ router.get('/', asyncHandler(crud.list));
 router.get('/:id', validate(idParamSchema), asyncHandler(crud.get));
 router.post('/', validate(createPartnerSchema), asyncHandler(crud.create));
 router.patch('/:id', validate(updatePartnerSchema), asyncHandler(crud.update));
-router.delete('/:id', validate(idParamSchema), asyncHandler(crud.remove));
+router.delete('/:id', requirePermission('partners.delete'), validate(idParamSchema), asyncHandler(crud.remove));
 
 export default router;

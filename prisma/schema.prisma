@@ -105,6 +105,7 @@ model Customer {
   tasks        Json     @default("[]")
   taskGroups   Json     @default("[]")
   files        Json     @default("[]")
+  agreements   Json     @default("[]")
   productLinks Json     @default("[]")
 
   logs         CustomerLog[]

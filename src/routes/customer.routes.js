@@ -25,7 +25,7 @@ router.get('/', asyncHandler(listCustomers));
 router.get('/:id', validate(idParamSchema), asyncHandler(getCustomer));
 router.post('/', validate(createCustomerSchema), asyncHandler(createCustomer));
 router.patch('/:id', validate(updateCustomerSchema), asyncHandler(updateCustomer));
-router.delete('/:id', validate(idParamSchema), asyncHandler(deleteCustomer));
+router.delete('/:id', requirePermission('customers.delete'), validate(idParamSchema), asyncHandler(deleteCustomer));
 router.post('/:id/logs', validate(appendLogSchema), asyncHandler(appendCustomerLog));
 
 export default router;
