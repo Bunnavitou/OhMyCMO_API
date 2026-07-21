@@ -9,6 +9,7 @@ import {
   deleteUserSchema,
 } from '../validators/user.validator.js';
 import {
+  listTeam,
   listUsers,
   getUser,
   updateUser,
@@ -18,6 +19,9 @@ import {
 const router = Router();
 
 router.use(requireAuth);
+
+// Any authenticated member can read the tenant roster (names only).
+router.get('/team', asyncHandler(listTeam));
 
 router.get('/', requireRole('ADMIN'), validate(listUsersSchema), asyncHandler(listUsers));
 router.get('/:id', validate(getUserSchema), asyncHandler(getUser));
