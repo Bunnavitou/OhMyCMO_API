@@ -38,3 +38,12 @@ export const updatePartnerSchema = z.object({
     .object({ ...partnerCore, name: partnerCore.name.optional() })
     .refine((d) => Object.keys(d).length > 0, { message: 'No fields to update' }),
 });
+
+export const appendLogSchema = z.object({
+  params: idParam,
+  body: z.object({
+    type: z.string().min(1).max(80),
+    message: z.string().min(1).max(500),
+    meta: z.record(z.unknown()).nullable().optional(),
+  }),
+});

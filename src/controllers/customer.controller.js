@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
-import { tenantIdOf } from '../utils/tenant.js';
+import { tenantIdOf, assertOwnTaskChangesOnly } from '../utils/tenant.js';
 
 // Top-level fields that — when changed — are worth logging.
 // Nested JSON arrays (tasks/staff/files/...) generate their own
@@ -75,6 +75,7 @@ export async function updateCustomer(req, res) {
 
   const data = { ...req.body };
   if ('groupId' in data) await ensureGroupBelongsToTenant(tenantId, data.groupId);
+  if ('tasks' in data) assertOwnTaskChangesOnly(req.user, existing.tasks, data.tasks);
 
   // Detect changed top-level fields for the audit log.
   const changedFields = LOGGABLE_TOP_FIELDS.filter(

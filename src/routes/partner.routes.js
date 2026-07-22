@@ -2,21 +2,29 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { requireAuth, requirePermission } from '../middleware/auth.middleware.js';
-import { makeCrud } from '../controllers/_crud.js';
 import {
   idParamSchema,
   createPartnerSchema,
   updatePartnerSchema,
+  appendLogSchema,
 } from '../validators/partner.validator.js';
+import {
+  listPartners,
+  getPartner,
+  createPartner,
+  updatePartner,
+  deletePartner,
+  appendPartnerLog,
+} from '../controllers/partner.controller.js';
 
-const crud = makeCrud({ modelKey: 'partner', resourceName: 'Partner', responseKey: 'partner' });
 const router = Router();
 
 router.use(requireAuth, requirePermission('partners'));
-router.get('/', asyncHandler(crud.list));
-router.get('/:id', validate(idParamSchema), asyncHandler(crud.get));
-router.post('/', validate(createPartnerSchema), asyncHandler(crud.create));
-router.patch('/:id', validate(updatePartnerSchema), asyncHandler(crud.update));
-router.delete('/:id', requirePermission('partners.delete'), validate(idParamSchema), asyncHandler(crud.remove));
+router.get('/', asyncHandler(listPartners));
+router.get('/:id', validate(idParamSchema), asyncHandler(getPartner));
+router.post('/', validate(createPartnerSchema), asyncHandler(createPartner));
+router.patch('/:id', validate(updatePartnerSchema), asyncHandler(updatePartner));
+router.delete('/:id', requirePermission('partners.delete'), validate(idParamSchema), asyncHandler(deletePartner));
+router.post('/:id/logs', validate(appendLogSchema), asyncHandler(appendPartnerLog));
 
 export default router;
