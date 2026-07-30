@@ -138,3 +138,33 @@ export async function me(req, res) {
   if (!user) throw ApiError.notFound('User not found');
   res.json({ success: true, data: { user: publicUser(user) } });
 }
+
+// Self-service password change for the authenticated user. Verifies the
+// current password before setting the new one, and rotates refresh tokens
+// so any other sessions are invalidated.
+export async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) throw ApiError.notFound('User not found');
+
+  const ok = await bcrypt.compare(currentPassword, user.password);
+  if (!ok) throw ApiError.unauthorized('Current password is incorrect');
+
+  if (await bcrypt.compare(newPassword, user.password)) {
+    throw ApiError.badRequest('New password must be different from the current password');
+  }
+
+  const hash = await bcrypt.hash(newPassword, env.BCRYPT_ROUNDS);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hash },
+  });
+
+  // Re-issue tokens so this session stays valid; the refreshToken rotation
+  // revokes previously-issued refresh tokens on other devices.
+  const { accessToken, refreshToken } = await issueTokens(updated);
+  setRefreshCookie(res, refreshToken);
+
+  res.json({ success: true, data: { user: publicUser(updated), accessToken } });
+}

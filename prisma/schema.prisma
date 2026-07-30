@@ -40,6 +40,8 @@ model User {
   partners       Partner[]
   campaigns      Campaign[]
   assets         Asset[]
+  reports        Report[]
+  reportLogs     ReportLog[]
   uploadedFiles  File[]
 
   createdAt    DateTime @default(now())
@@ -214,6 +216,9 @@ model Campaign {
   status      String   @default("Planning")
 
   todos       Json     @default("[]")
+  // Activity log entries (JSON, client-appended) mirroring the customer/partner
+  // audit trail — surfaced in the Tasks "Team activity" feed.
+  logs        Json     @default("[]")
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -237,6 +242,48 @@ model Asset {
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+}
+
+// WeBill365 usage reports. One row per account type (LM = Virtual Account,
+// SM = Bank Account) per month. `data` holds each metric's figures:
+//   { [metricKey]: { prevYear, currentYear, weeks: [w1,w2,w3,w4] } }
+// The weekly 합계 total is derived (sum of weeks) on the client.
+model Report {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  account   String   // 'LM' (Virtual Account) | 'SM' (Bank Account)
+  year      Int
+  month     Int
+  data      Json     @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+// Audit trail for report activity (create / update / delete). Tenant-scoped and
+// intentionally NOT a cascade child of Report — the reportId is a soft pointer,
+// so a report's history (including its deletion) survives after it is removed.
+model ReportLog {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  reportId  String?  // soft pointer; kept even after the report row is gone
+  actorId   String
+  actorName String?
+  action    String   // 'create' | 'update' | 'delete'
+  account   String
+  year      Int
+  month     Int
+  meta      Json?
+  ts        DateTime @default(now())
+
+  @@index([ownerId])
+  @@index([ts])
 }
 
 // File uploads. Saved to disk under FILE_STORAGE_DIR; metadata kept here.

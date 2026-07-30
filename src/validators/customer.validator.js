@@ -24,6 +24,17 @@ const profileImageSchema = z
 // A single email address; also permits '' so the client can clear the field.
 const optionalEmail = z.string().email().nullable().or(z.literal('')).optional();
 
+// A recipient list — an array of emails (preferred) or a single email string
+// (legacy) or '' to clear. Used by the multi-recipient "To" field.
+const recipientList = z
+  .union([
+    z.array(z.string().email()).max(50),
+    z.string().email(),
+    z.literal(''),
+  ])
+  .nullable()
+  .optional();
+
 // Optional per-customer email template override for invoices.
 const emailTemplateSchema = z
   .object({
@@ -36,7 +47,7 @@ const emailTemplateSchema = z
 // Task email settings bound to a customer (Email tab in the detail view).
 const taskEmailSchema = z
   .object({
-    to: optionalEmail,
+    to: recipientList,
     cc: z.array(z.string().email()).optional(),
     subject: z.string().max(300).optional(),
     body: z.string().max(5000).optional(),

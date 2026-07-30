@@ -9,6 +9,7 @@ import productRoutes from './product.routes.js';
 import partnerRoutes from './partner.routes.js';
 import campaignRoutes from './campaign.routes.js';
 import assetRoutes from './asset.routes.js';
+import reportRoutes from './report.routes.js';
 import fileRoutes from './file.routes.js';
 import zohoRoutes from './zoho.routes.js';
 
@@ -28,6 +29,7 @@ router.use('/products', productRoutes);
 router.use('/partners', partnerRoutes);
 router.use('/campaigns', campaignRoutes);
 router.use('/assets', assetRoutes);
+router.use('/reports', reportRoutes);
 router.use('/files', fileRoutes);
 router.use('/zoho', zohoRoutes);
 

@@ -13,6 +13,7 @@ const campaignCore = {
   endDate: z.string().nullable().optional(),
   status: z.string().max(40).optional(),
   todos: jsonArray.optional(),
+  logs: jsonArray.optional(),
 };
 
 export const createCampaignSchema = z.object({ body: z.object(campaignCore) });

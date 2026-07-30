@@ -15,7 +15,7 @@ export function isOwner(user) {
   return !!user && !user.ownerId;
 }
 
-export const PERMISSION_KEYS = ['tasks', 'customers', 'products', 'partners', 'marketing', 'assets', 'subUsers'];
+export const PERMISSION_KEYS = ['tasks', 'customers', 'products', 'partners', 'marketing', 'assets', 'reports', 'subUsers'];
 
 // Owners have implicit full access. For sub-users: menu keys are opt-in
 // (=== true); any other key is a per-menu action ability, opt-out (allowed
