@@ -5,13 +5,17 @@ import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf } from '../utils/tenant.js';
 
 // Lightweight roster of everyone in the caller's tenant (the owner + all
-// sub-users). Any authenticated member may read it — it only exposes names,
-// so tasks can be assigned to real accounts and "my tasks" can be scoped.
+// sub-users). Any authenticated member may read it — it only exposes names
+// (plus `inChargeId`, who reports to whom — also not sensitive), so tasks
+// can be assigned to real accounts, "my tasks" can be scoped, and the
+// frontend can narrow a PMO's assignable pool to their own reports.
 export async function listTeam(req, res) {
   const tenantId = tenantIdOf(req.user);
   const items = await prisma.user.findMany({
     where: { OR: [{ id: tenantId }, { ownerId: tenantId }] },
-    select: { id: true, name: true, username: true, email: true, role: true, active: true },
+    select: {
+      id: true, name: true, username: true, email: true, role: true, active: true, inChargeId: true,
+    },
     orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
   });
   res.json({ success: true, data: { items } });

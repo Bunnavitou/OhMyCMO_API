@@ -11,7 +11,12 @@ const SUB_USER_SELECT = {
   role: true,
   active: true,
   permissions: true,
+  isPmo: true,
+  tasks: true,
+  logs: true,
   ownerId: true,
+  inChargeId: true,
+  inCharge: { select: { id: true, name: true, username: true } },
   createdAt: true,
   updatedAt: true,
 };
@@ -36,9 +41,21 @@ export async function getSubUser(req, res) {
   res.json({ success: true, data: { subUser: item } });
 }
 
+// inChargeId of '' or null means "reports to the tenant owner". A non-empty
+// value must be another sub-user within the same tenant (never the sub-user
+// themselves, to avoid a self-loop).
+async function resolveInChargeId(tenantId, inChargeId, selfId) {
+  if (inChargeId === undefined) return undefined;
+  if (!inChargeId) return null;
+  if (inChargeId === selfId) throw ApiError.badRequest('A sub-user cannot be their own incharge');
+  const incharge = await prisma.user.findFirst({ where: { id: inChargeId, ownerId: tenantId } });
+  if (!incharge) throw ApiError.badRequest('Incharge must be an existing sub-user in this team');
+  return inChargeId;
+}
+
 export async function createSubUser(req, res) {
   const tenantId = tenantIdOf(req.user);
-  const { username, password, name, active, permissions } = req.body;
+  const { username, password, name, active, permissions, isPmo, tasks, inChargeId } = req.body;
 
   // Username must be globally unique. Surface a friendly 409.
   const taken = await prisma.user.findUnique({ where: { username } });
@@ -54,6 +71,9 @@ export async function createSubUser(req, res) {
       active: active ?? true,
       ownerId: tenantId,
       permissions: permissions ?? {},
+      isPmo: isPmo ?? false,
+      tasks: tasks ?? [],
+      inChargeId: (await resolveInChargeId(tenantId, inChargeId, null)) ?? null,
     },
     select: SUB_USER_SELECT,
   });
@@ -81,6 +101,10 @@ export async function updateSubUser(req, res) {
     data.password = await bcrypt.hash(data.password, env.BCRYPT_ROUNDS);
   } else {
     delete data.password; // empty/missing means "keep current"
+  }
+
+  if ('inChargeId' in data) {
+    data.inChargeId = await resolveInChargeId(tenantId, data.inChargeId, id);
   }
 
   const item = await prisma.user.update({

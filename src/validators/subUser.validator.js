@@ -11,6 +11,8 @@ const usernameSchema = z
 // don't require a validator change.
 const permissionsSchema = z.record(z.boolean());
 
+const jsonArray = z.array(z.unknown());
+
 export const createSubUserSchema = z.object({
   body: z.object({
     username: usernameSchema,
@@ -18,6 +20,9 @@ export const createSubUserSchema = z.object({
     name: z.string().max(80).optional(),
     active: z.boolean().optional(),
     permissions: permissionsSchema.optional(),
+    isPmo: z.boolean().optional(),
+    tasks: jsonArray.optional(),
+    inChargeId: z.string().min(1).nullable().optional(),
   }),
 });
 
@@ -30,6 +35,10 @@ export const updateSubUserSchema = z.object({
       name: z.string().max(80).nullable().optional(),
       active: z.boolean().optional(),
       permissions: permissionsSchema.optional(),
+      isPmo: z.boolean().optional(),
+      tasks: jsonArray.optional(),
+      logs: jsonArray.optional(),
+      inChargeId: z.string().min(1).nullable().optional(),
     })
     .refine((d) => Object.keys(d).length > 0, { message: 'No fields to update' }),
 });

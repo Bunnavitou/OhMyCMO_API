@@ -38,19 +38,9 @@ export const env = {
   FILE_STORAGE_DIR: process.env.FILE_STORAGE_DIR || path.join(projectRoot, 'uploads'),
   MAX_UPLOAD_BYTES: Number(process.env.MAX_UPLOAD_BYTES || 20 * 1024 * 1024),
 
-  // Zoho Mail SMTP — used to send invoice reports. Optional: when unset, the
-  // /zoho endpoints report "not configured" and sending is disabled.
-  SMTP_HOST: process.env.SMTP_HOST || '',
-  SMTP_PORT: Number(process.env.SMTP_PORT || 465),
-  SMTP_USER: process.env.SMTP_USER || '',
-  SMTP_PASS: process.env.SMTP_PASS || '',
-  SMTP_FROM: process.env.SMTP_FROM || '',
-  SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || '',
-  // Optional archive copy of every sent email (SMTP doesn't populate "Sent").
-  SMTP_BCC: process.env.SMTP_BCC || '',
-
   // Save a copy of each sent email to the mailbox "Sent" folder over IMAP
-  // (SMTP alone can't). Reuses SMTP_USER/SMTP_PASS. Requires IMAP enabled.
+  // (SMTP alone can't). Each user's own SMTP credentials (Settings → Email
+  // settings) are reused for this. Requires IMAP enabled on their mailbox.
   SAVE_TO_SENT: String(process.env.SAVE_TO_SENT).toLowerCase() === 'true',
   IMAP_HOST: process.env.IMAP_HOST || 'imap.zoho.com',
   IMAP_PORT: Number(process.env.IMAP_PORT || 993),

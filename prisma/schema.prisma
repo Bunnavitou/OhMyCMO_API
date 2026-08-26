@@ -32,11 +32,44 @@ model User {
   subUsers     User[]   @relation("Tenancy")
 
   permissions  Json?
+  // Marks a sub-user as a designated PMO — managed via the PMO menu (list
+  // from existing sub-users, no separate account creation). Distinct from
+  // `role`, which is structural tenancy (owner vs sub-user), not job function.
+  isPmo        Boolean  @default(false)
+
+  // Who this sub-user reports to (their supervisor) — another sub-user, or
+  // null meaning the tenant owner. Purely informational reporting-line data;
+  // does not itself grant or restrict permissions.
+  inChargeId   String?
+  inCharge     User?    @relation("Supervision", fields: [inChargeId], references: [id], onDelete: SetNull)
+  supervisees  User[]   @relation("Supervision")
+  // Tasks this PMO manages (assigned to team members, e.g. Support staff) —
+  // shape mirrors Customer.tasks. Independent of any single product, since a
+  // PMO may own several.
+  tasks        Json     @default("[]")
+  // Audit trail for `tasks` above — client-built entries, same JSON-column
+  // pattern as Campaign.logs (no dedicated table), so the Tasks "Team
+  // activity" feed can render PMO task changes alongside the rest.
+  logs         Json     @default("[]")
+
+  // Per-tenant outbound mail (Zoho Mail SMTP) config — set by the tenant
+  // owner in Settings, instead of the server-wide SMTP_* env vars. Only
+  // ever populated on an owner row (mail always sends as the tenant owner's
+  // mailbox); null fields fall back to the env defaults. `mailPassEnc` is
+  // AES-256-GCM ciphertext (see src/utils/crypto.js), never the plaintext
+  // app password.
+  mailHost     String?
+  mailPort     Int?
+  mailUser     String?
+  mailPassEnc  String?
+  mailFromName String?
+  mailBcc      String?
 
   posts          Post[]
   customers      Customer[]
   customerGroups CustomerGroup[]
   products       Product[]
+  pmoProducts    Product[]       @relation("ProductPmoOwner")
   partners       Partner[]
   campaigns      Campaign[]
   assets         Asset[]
@@ -48,6 +81,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   @@index([ownerId])
+  @@index([inChargeId])
 }
 
 model Post {
@@ -146,14 +180,30 @@ model CustomerLog {
 }
 
 model Product {
-  id        String   @id @default(cuid())
-  ownerId   String
-  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
-  name      String
-  type      String   @default("Service")
-  price     Float    @default(0)
-  logo      Json?
+  // PMO assignee — distinct from `owner` above, which is the tenant owner.
+  pmoOwnerId String?
+  pmoOwner   User?    @relation("ProductPmoOwner", fields: [pmoOwnerId], references: [id], onDelete: SetNull)
+
+  name       String
+  type       String   @default("Service")
+  price      Float    @default(0)
+  logo       Json?
+
+  stage      String   @default("Intake")
+
+  // Nested collections — JSON shape mirrors StoreContext (see Customer.staff/tasks)
+  staff      Json     @default("[]")
+  tasks      Json     @default("[]")
+
+  // Activity log entries (JSON, client-appended) mirroring the customer/partner
+  // audit trail — surfaced in the Tasks "Team activity" feed.
+  logs       Json     @default("[]")
+
+  lastActivityAt DateTime?
 
   income    Json     @default("[]")
   expenses  Json     @default("[]")
@@ -163,6 +213,7 @@ model Product {
   updatedAt DateTime @updatedAt
 
   @@index([ownerId])
+  @@index([pmoOwnerId])
 }
 
 model Partner {

@@ -15,7 +15,14 @@ export function isOwner(user) {
   return !!user && !user.ownerId;
 }
 
-export const PERMISSION_KEYS = ['tasks', 'customers', 'products', 'partners', 'marketing', 'assets', 'reports', 'subUsers'];
+export const PERMISSION_KEYS = [
+  'tasks', 'customers', 'products', 'partners', 'marketing', 'assets', 'reports', 'subUsers',
+  // Opt-in like the menu keys above, not the default-allow abilities below —
+  // the PMO menu is visible to everyone, but promoting/demoting a PMO,
+  // reassigning a product's PMO owner, and editing a PMO's tasks are
+  // sensitive enough that a sub-user must be explicitly granted this.
+  'pmo.manage',
+];
 
 // Owners have implicit full access. For sub-users: menu keys are opt-in
 // (=== true); any other key is a per-menu action ability, opt-out (allowed
