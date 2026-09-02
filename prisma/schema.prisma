@@ -23,6 +23,9 @@ model User {
   username     String?  @unique
   password     String
   name         String?
+  // Profile picture — a File-store reference ({ fileId, name, type, size }),
+  // same shape as Product.logo. Self-editable from More > Profile.
+  avatar       Json?
   role         Role     @default(USER)
   active       Boolean  @default(true)
   refreshToken String?

@@ -139,6 +139,33 @@ export async function me(req, res) {
   res.json({ success: true, data: { user: publicUser(user) } });
 }
 
+// Self-service profile edit for the authenticated user: display name,
+// avatar, and (for sub-users) their login username. Re-issues tokens since
+// the username is embedded in the JWT payload.
+export async function updateProfile(req, res) {
+  const { name, avatar, username } = req.body;
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!user) throw ApiError.notFound('User not found');
+
+  const data = {};
+  if (name !== undefined) data.name = name;
+  if (avatar !== undefined) data.avatar = avatar;
+
+  if (username !== undefined && username !== user.username) {
+    const taken = await prisma.user.findUnique({ where: { username } });
+    if (taken) throw ApiError.conflict('Username is already taken');
+    data.username = username;
+  }
+
+  const updated = await prisma.user.update({ where: { id: user.id }, data });
+
+  const { accessToken, refreshToken } = await issueTokens(updated);
+  setRefreshCookie(res, refreshToken);
+
+  res.json({ success: true, data: { user: publicUser(updated), accessToken } });
+}
+
 // Self-service password change for the authenticated user. Verifies the
 // current password before setting the new one, and rotates refresh tokens
 // so any other sessions are invalidated.

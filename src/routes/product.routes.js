@@ -18,7 +18,7 @@ const crud = makeCrud({
   modelKey: 'product',
   resourceName: 'Product',
   responseKey: 'product',
-  include: { pmoOwner: { select: { id: true, name: true, username: true } } },
+  include: { pmoOwner: { select: { id: true, name: true, username: true, avatar: true } } },
   ownerOnlyFields: ['pmoOwnerId'],
   ownerOnlyFieldsUnless: 'pmo.manage',
 });

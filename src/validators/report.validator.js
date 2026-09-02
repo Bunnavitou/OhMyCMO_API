@@ -38,7 +38,7 @@ const dataSchema = z
   .passthrough(); // tolerate legacy metric-keyed data on read/round-trip
 
 const reportCore = {
-  account: z.enum(['LM', 'SM']),
+  account: z.enum(['LM', 'SM', 'SMS']),
   year: z.number().int().min(2000).max(2100),
   month: z.number().int().min(1).max(12),
   data: dataSchema.optional(),

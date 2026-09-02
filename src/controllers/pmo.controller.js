@@ -18,6 +18,7 @@ const PMO_SELECT = {
   id: true,
   name: true,
   username: true,
+  avatar: true,
   isPmo: true,
   tasks: true,
   logs: true,
