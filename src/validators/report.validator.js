@@ -16,6 +16,12 @@ const rowSchema = z
     prevYear: cellNum,
     currentYear: cellNum,
     weeks: z.array(z.number().nullable()).max(24).optional(),
+    // WeUMS (SMS) per-row pricing: Buy In (cost) and Sell Out (billed) rate per
+    // SMS for this row. Sell Out drives the usage-total calc (usage × sellOut) —
+    // per row, since different SMS types/routes on the same report can bill
+    // differently.
+    buyIn: cellNum,
+    sellOut: cellNum,
   })
   .passthrough();
 
