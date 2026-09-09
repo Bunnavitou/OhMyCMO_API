@@ -13,7 +13,7 @@ const rowSchema = z
     id: z.string().min(1),
     label: z.string().max(200).optional(),
     money: z.boolean().optional(),
-    // Operator (☎) format: a carrier usage row. Only these rows carry a
+    // Operator (O) format: a carrier usage row. Only these rows carry a
     // Buy In / Sell Out rate — plain count rows are unbilled tallies.
     operator: z.boolean().optional(),
     prevYear: cellNum,
