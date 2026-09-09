@@ -13,13 +13,16 @@ const rowSchema = z
     id: z.string().min(1),
     label: z.string().max(200).optional(),
     money: z.boolean().optional(),
+    // Operator (☎) format: a carrier usage row. Only these rows carry a
+    // Buy In / Sell Out rate — plain count rows are unbilled tallies.
+    operator: z.boolean().optional(),
     prevYear: cellNum,
     currentYear: cellNum,
     weeks: z.array(z.number().nullable()).max(24).optional(),
     // WeUMS (SMS) per-row pricing: Buy In (cost) and Sell Out (billed) rate per
-    // SMS for this row. Sell Out drives the usage-total calc (usage × sellOut) —
-    // per row, since different SMS types/routes on the same report can bill
-    // differently.
+    // SMS for this row, set on Operator rows only. Sell Out drives the
+    // usage-total calc (usage × sellOut) — per row, since different carriers
+    // and routes on the same report bill differently.
     buyIn: cellNum,
     sellOut: cellNum,
   })
