@@ -42,3 +42,29 @@ export const updateProductSchema = z.object({
     .object({ ...productCore, name: productCore.name.optional() })
     .refine((d) => Object.keys(d).length > 0, { message: 'No fields to update' }),
 });
+
+// Per-entry writes into a product's JSON array columns. Entries stay `unknown`
+// shaped for the same reason the whole-array fields above do: the billing UI
+// owns their shape and older rows carry legacy keys.
+const childEntry = z.record(z.unknown());
+const childParams = idParam.extend({ field: z.enum(['income', 'expenses']) });
+const childEntryParams = childParams.extend({ entryId: z.string().min(1) });
+
+export const addProductChildrenSchema = z.object({
+  params: childParams,
+  body: z
+    .object({
+      item: childEntry.optional(),
+      items: z.array(childEntry).min(1).max(200).optional(),
+    })
+    .refine((b) => !b.item !== !b.items, {
+      message: 'Provide exactly one of item or items',
+    }),
+});
+
+export const updateProductChildSchema = z.object({
+  params: childEntryParams,
+  body: z.object({ patch: childEntry }),
+});
+
+export const productChildParamsSchema = z.object({ params: childEntryParams });
