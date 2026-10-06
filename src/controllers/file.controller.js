@@ -9,6 +9,18 @@ import { tenantIdOf } from '../utils/tenant.js';
 // Ensure the storage directory exists at boot.
 fs.mkdirSync(env.FILE_STORAGE_DIR, { recursive: true });
 
+// `storagePath` holds a bare filename, resolved against FILE_STORAGE_DIR here.
+//
+// It used to hold the absolute path multer wrote to, which is a fact about one
+// machine rather than about the file: rows uploaded on a laptop pointed at
+// /Users/<someone>/.../uploads/… and every one of them 404'd once the database
+// moved into a container, even with the bytes sitting right there.
+//
+// basename() also means a value from an older row (or any tampered-with one)
+// cannot escape the storage directory.
+const resolveStoragePath = (storagePath) =>
+  path.join(env.FILE_STORAGE_DIR, path.basename(storagePath));
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, env.FILE_STORAGE_DIR),
   filename: (_req, file, cb) => {
@@ -37,7 +49,7 @@ export async function uploadFile(req, res) {
       name: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,
-      storagePath: req.file.path,
+      storagePath: req.file.filename,
       entityType: entityType || null,
       entityId: entityId || null,
     },
@@ -75,7 +87,8 @@ export async function downloadFile(req, res) {
     where: { id: req.params.id, ownerId: tenantId },
   });
   if (!f) throw ApiError.notFound('File not found');
-  if (!fs.existsSync(f.storagePath)) {
+  const onDisk = resolveStoragePath(f.storagePath);
+  if (!fs.existsSync(onDisk)) {
     throw ApiError.notFound('File data missing on disk');
   }
   res.setHeader('Content-Type', f.mimeType || 'application/octet-stream');
@@ -83,7 +96,7 @@ export async function downloadFile(req, res) {
     'Content-Disposition',
     `inline; filename="${encodeURIComponent(f.name)}"`,
   );
-  res.sendFile(path.resolve(f.storagePath));
+  res.sendFile(path.resolve(onDisk));
 }
 
 export async function deleteFile(req, res) {
@@ -93,6 +106,6 @@ export async function deleteFile(req, res) {
   });
   if (!f) throw ApiError.notFound('File not found');
   await prisma.file.delete({ where: { id: f.id } });
-  fs.promises.unlink(f.storagePath).catch(() => {});
+  fs.promises.unlink(resolveStoragePath(f.storagePath)).catch(() => {});
   res.json({ success: true, data: { message: 'File deleted' } });
 }
