@@ -1,7 +1,7 @@
 {
-  "name": "ohmycmo-api",
+  "name": "wecrm-api",
   "version": "1.0.0",
-  "description": "Express + Prisma + PostgreSQL backend for OhMyCMO",
+  "description": "Express + Prisma + PostgreSQL backend for WeCRM",
   "type": "module",
   "main": "src/index.js",
   "scripts": {

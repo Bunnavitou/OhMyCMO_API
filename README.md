@@ -1,6 +1,6 @@
-# OhMyCMO API
+# WeCRM API
 
-Node.js + Express + Prisma + PostgreSQL backend for the OhMyCMO React + Vite frontend.
+Node.js + Express + Prisma + PostgreSQL backend for the WeCRM React + Vite frontend.
 
 ## Topology
 

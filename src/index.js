@@ -9,7 +9,7 @@ async function main() {
   // Bind to loopback only — the backend is reached via the frontend's
   // /api proxy on the same server and must not be exposed to the internet.
   const server = app.listen(env.PORT, env.HOST, () => {
-    console.log(`[${env.NODE_ENV}] OhMyCMO API listening on http://${env.HOST}:${env.PORT}`);
+    console.log(`[${env.NODE_ENV}] WeCRM API listening on http://${env.HOST}:${env.PORT}`);
     console.log(`CORS origin: ${env.CORS_ORIGIN}`);
   });
 
