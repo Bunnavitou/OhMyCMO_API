@@ -11,9 +11,6 @@ const SUB_USER_SELECT = {
   role: true,
   active: true,
   permissions: true,
-  isPmo: true,
-  tasks: true,
-  logs: true,
   ownerId: true,
   inChargeId: true,
   inCharge: { select: { id: true, name: true, username: true } },
@@ -55,7 +52,7 @@ async function resolveInChargeId(tenantId, inChargeId, selfId) {
 
 export async function createSubUser(req, res) {
   const tenantId = tenantIdOf(req.user);
-  const { username, password, name, active, permissions, isPmo, tasks, inChargeId } = req.body;
+  const { username, password, name, active, permissions, inChargeId } = req.body;
 
   // Username must be globally unique. Surface a friendly 409.
   const taken = await prisma.user.findUnique({ where: { username } });
@@ -71,8 +68,6 @@ export async function createSubUser(req, res) {
       active: active ?? true,
       ownerId: tenantId,
       permissions: permissions ?? {},
-      isPmo: isPmo ?? false,
-      tasks: tasks ?? [],
       inChargeId: (await resolveInChargeId(tenantId, inChargeId, null)) ?? null,
     },
     select: SUB_USER_SELECT,

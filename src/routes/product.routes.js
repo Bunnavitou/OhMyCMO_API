@@ -19,16 +19,10 @@ import {
 
 // Any sub-user with the 'products' menu permission sees every tenant
 // Product/Service, same as Customers/Partners/Marketing/Assets/Reports.
-// Only the tenant owner or a 'pmo.manage' holder may set/change `pmoOwnerId`
-// (via `ownerOnlyFields`/`ownerOnlyFieldsUnless`, below) — a PMO or task
-// assignee can't self-assign or reassign a record.
 const crud = makeCrud({
   modelKey: 'product',
   resourceName: 'Product',
   responseKey: 'product',
-  include: { pmoOwner: { select: { id: true, name: true, username: true, avatar: true } } },
-  ownerOnlyFields: ['pmoOwnerId'],
-  ownerOnlyFieldsUnless: 'pmo.manage',
 });
 const router = Router();
 

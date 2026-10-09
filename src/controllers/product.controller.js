@@ -16,10 +16,6 @@ import { tenantIdOf } from '../utils/tenant.js';
 
 const CHILD_FIELDS = ['income', 'expenses'];
 
-const PRODUCT_INCLUDE = {
-  pmoOwner: { select: { id: true, name: true, username: true, avatar: true } },
-};
-
 // Mirrors the id shape the frontend used to mint ('i-…' / 'e-…').
 const newEntryId = (field) =>
   `${field[0]}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -47,7 +43,6 @@ async function mutateChildren(req, mutate) {
     return tx.product.update({
       where: { id },
       data: { [field]: mutate(current) },
-      include: PRODUCT_INCLUDE,
     });
   });
 }

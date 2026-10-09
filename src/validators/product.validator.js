@@ -24,7 +24,6 @@ const productCore = {
   type: z.string().max(40).optional(),
   price: z.number().nonnegative().optional(),
   logo: logoSchema,
-  pmoOwnerId: z.string().min(1).nullable().optional(),
   stage: z.string().max(40).optional(),
   staff: jsonArray.optional(),
   tasks: jsonArray.optional(),

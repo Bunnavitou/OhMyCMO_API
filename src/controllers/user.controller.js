@@ -8,7 +8,7 @@ import { tenantIdOf } from '../utils/tenant.js';
 // sub-users). Any authenticated member may read it — it only exposes names
 // (plus `inChargeId`, who reports to whom — also not sensitive), so tasks
 // can be assigned to real accounts, "my tasks" can be scoped, and the
-// frontend can narrow a PMO's assignable pool to their own reports.
+// frontend can narrow an assignable pool to a user's own reports.
 export async function listTeam(req, res) {
   const tenantId = tenantIdOf(req.user);
   const items = await prisma.user.findMany({
