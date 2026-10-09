@@ -193,7 +193,7 @@ model Product {
 
   name       String
   type       String   @default("Service")
-  price      Float    @default(0)
+  price      Decimal  @default(0) @db.Decimal(14, 2)
   logo       Json?
 
   stage      String   @default("Intake")
