@@ -20,7 +20,7 @@ binds to `127.0.0.1` only, so it is unreachable from the internet.
 Includes:
 - JWT auth (access + refresh tokens, refresh in httpOnly cookie)
 - Role-based access (USER / ADMIN)
-- CRUD APIs (users, posts) with pagination & search
+- CRUD APIs (users) with pagination & search
 - Zod validation, central error handling
 - Helmet, rate limiting, request logging
 - Per-environment config via `.env.development` / `.env.production` switched by `NODE_ENV`
@@ -173,16 +173,6 @@ The refresh token is set as an httpOnly cookie scoped to `/api/auth`.
 | PATCH  | `/:id` | self / ADMIN | role change requires ADMIN            |
 | DELETE | `/:id` | self / ADMIN |                                       |
 
-### Posts — `/api/posts`
-
-| Method | Path   | Auth         | Notes                                                       |
-|-------:|--------|--------------|-------------------------------------------------------------|
-| GET    | `/`    | public       | `?page=&limit=&published=true|false&authorId=&search=`      |
-| GET    | `/:id` | public       |                                                             |
-| POST   | `/`    | Bearer       | `{ title, content?, published? }`                           |
-| PATCH  | `/:id` | author / ADMIN | partial update                                            |
-| DELETE | `/:id` | author / ADMIN |                                                           |
-
 ### Error shape
 
 ```json
@@ -219,7 +209,7 @@ localStorage.setItem('accessToken', data.accessToken);
 Authenticated requests:
 
 ```js
-fetch(`${import.meta.env.VITE_API_URL}/posts`, {
+fetch(`${import.meta.env.VITE_API_URL}/customers`, {
   headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
   credentials: 'include',
 });
@@ -249,7 +239,7 @@ npm run prisma:migrate:dev      # create/apply dev migrations
 npm run prisma:migrate:deploy   # apply migrations on prod DB
 npm run prisma:studio:dev       # Prisma Studio against dev DB
 npm run prisma:studio:prod      # Prisma Studio against prod DB
-npm run db:seed                 # seed demo accounts + posts (dev DB)
+npm run db:seed                 # seed demo accounts (dev DB)
 ```
 
 ---
@@ -267,9 +257,9 @@ OhMyCMO_API/
 │   ├── config/
 │   │   ├── env.js              # Loads .env.<NODE_ENV>
 │   │   └── prisma.js           # Prisma client singleton
-│   ├── controllers/            # auth, user, post
+│   ├── controllers/            # auth, user, …
 │   ├── middleware/             # auth, validate, error
-│   ├── routes/                 # auth, user, post, index
+│   ├── routes/                 # auth, user, …, index
 │   ├── utils/                  # ApiError, asyncHandler, jwt
 │   └── validators/             # Zod schemas
 ├── .env.development

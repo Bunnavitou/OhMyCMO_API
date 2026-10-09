@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes.js';
 import userRoutes from './user.routes.js';
-import postRoutes from './post.routes.js';
 import subUserRoutes from './subUser.routes.js';
 import customerRoutes from './customer.routes.js';
 import customerGroupRoutes from './customerGroup.routes.js';
@@ -21,7 +20,6 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
-router.use('/posts', postRoutes);
 router.use('/sub-users', subUserRoutes);
 router.use('/customers', customerRoutes);
 router.use('/customer-groups', customerGroupRoutes);
