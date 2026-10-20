@@ -72,6 +72,9 @@ const customerCore = {
   emailTemplate: emailTemplateSchema,
   taskEmail: taskEmailSchema,
   pinned: z.boolean().optional(),
+  // Regular check-ins: rhythm + the team member who does them.
+  careCadence: z.enum(['monthly', 'quarterly']).nullable().optional(),
+  careOwnerId: z.string().min(1).nullable().optional(),
   staff: jsonArray.optional(),
   tasks: jsonArray.optional(),
   taskGroups: jsonArray.optional(),
@@ -101,4 +104,19 @@ export const appendLogSchema = z.object({
     message: z.string().min(1).max(500),
     meta: z.record(z.unknown()).nullable().optional(),
   }),
+});
+
+const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const checkinsSchema = z.object({
+  query: z.object({
+    from: dateKey,
+    to: dateKey,
+    userId: z.string().min(1).optional(),
+  }),
+});
+
+export const logCheckinSchema = z.object({
+  params: idParam,
+  body: z.object({ note: z.string().max(500).optional() }),
 });

@@ -83,6 +83,7 @@ model User {
   officerSales   Sale[]          @relation("SaleOfficer")
   activities     Activity[]
   assignedActs   Activity[]      @relation("ActivityAssignee")
+  caredCustomers Customer[]      @relation("CustomerCareOwner")
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -155,11 +156,20 @@ model Customer {
   sales        Sale[]
   fromPartner  Partner?
 
+  // Regular check-ins (care proposal, feature 4): how often someone should
+  // get in touch ('monthly' | 'quarterly'; null = no rhythm) and who does it.
+  // Each check-in is a 'care.checkin' CustomerLog; the next one is due one
+  // rhythm after the last contact of any kind (utils/health.js).
+  careCadence  String?
+  careOwnerId  String?
+  careOwner    User?    @relation("CustomerCareOwner", fields: [careOwnerId], references: [id], onDelete: SetNull)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([ownerId])
   @@index([groupId])
+  @@index([ownerId, careOwnerId])
 }
 
 model CustomerGroup {

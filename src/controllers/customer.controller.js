@@ -2,12 +2,15 @@ import { prisma } from '../config/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf, assertOwnTaskChangesOnly } from '../utils/tenant.js';
 import { HEALTH_STAGES, THRESHOLDS, customerHealth } from '../utils/health.js';
+import { todayKey } from '../utils/activities.js';
+
+const PERSON = { select: { id: true, name: true, username: true } };
 
 // Top-level fields that — when changed — are worth logging.
 // Nested JSON arrays (tasks/staff/files/...) generate their own
 // per-action logs at higher granularity from the frontend's existing
 // "appendCustomerLog" call paths, so we don't double-log them here.
-const LOGGABLE_TOP_FIELDS = ['name', 'industry', 'contact', 'email', 'phone', 'address', 'vatTin', 'stage', 'groupId'];
+const LOGGABLE_TOP_FIELDS = ['name', 'industry', 'contact', 'email', 'phone', 'address', 'vatTin', 'stage', 'groupId', 'careCadence', 'careOwnerId'];
 
 // Reject groupId values that don't belong to the caller's tenant.
 async function ensureGroupBelongsToTenant(tenantId, groupId) {
@@ -17,6 +20,13 @@ async function ensureGroupBelongsToTenant(tenantId, groupId) {
     select: { id: true },
   });
   if (!g) throw ApiError.badRequest('Unknown groupId for this tenant');
+}
+
+// The care owner must be someone on the tenant's team (the owner or a sub-user).
+async function ensureCareOwnerInTenant(tenantId, userId) {
+  if (!userId) return;
+  const n = await prisma.user.count({ where: { id: userId, OR: [{ id: tenantId }, { ownerId: tenantId }] } });
+  if (!n) throw ApiError.badRequest('Validation failed', [{ path: 'body.careOwnerId', message: 'Not found' }]);
 }
 
 function customerWithLogs(customer) {
@@ -53,6 +63,7 @@ export async function getCustomer(req, res) {
 export async function createCustomer(req, res) {
   const tenantId = tenantIdOf(req.user);
   await ensureGroupBelongsToTenant(tenantId, req.body.groupId);
+  await ensureCareOwnerInTenant(tenantId, req.body.careOwnerId);
   const item = await prisma.customer.create({
     data: { ...req.body, ownerId: tenantId },
     include: { logs: true },
@@ -76,6 +87,7 @@ export async function updateCustomer(req, res) {
 
   const data = { ...req.body };
   if ('groupId' in data) await ensureGroupBelongsToTenant(tenantId, data.groupId);
+  if ('careOwnerId' in data) await ensureCareOwnerInTenant(tenantId, data.careOwnerId);
   if ('tasks' in data) assertOwnTaskChangesOnly(req.user, existing.tasks, data.tasks);
 
   // Detect changed top-level fields for the audit log.
@@ -122,16 +134,19 @@ export async function deleteCustomer(req, res) {
   res.json({ success: true, data: { message: 'Customer deleted' } });
 }
 
-// Health of every customer being served (utils/health.js). Computed here
-// because it reads sales and activities, which the client loads per screen.
-export async function listCustomerHealth(req, res) {
-  const tenantId = tenantIdOf(req.user);
+// Health of every customer being served (utils/health.js), with each
+// customer's row. Computed here because it reads sales and activities, which
+// the client loads per screen.
+async function tenantHealth(tenantId) {
   const customers = await prisma.customer.findMany({
     where: { ownerId: tenantId, stage: { in: HEALTH_STAGES } },
-    select: { id: true, name: true, createdAt: true, tasks: true, productLinks: true },
+    select: {
+      id: true, name: true, createdAt: true, tasks: true, productLinks: true,
+      careCadence: true, careOwnerId: true, careOwner: PERSON,
+    },
   });
   const ids = customers.map((c) => c.id);
-  const [sales, products, sends] = await Promise.all([
+  const [sales, products, logs] = await Promise.all([
     prisma.sale.findMany({
       where: { ownerId: tenantId, customerId: { in: ids } },
       select: {
@@ -141,11 +156,12 @@ export async function listCustomerHealth(req, res) {
     }),
     prisma.product.findMany({ where: { ownerId: tenantId }, select: { income: true } }),
     prisma.customerLog.groupBy({
-      by: ['customerId'],
-      where: { customerId: { in: ids }, type: 'invoice.send' },
+      by: ['customerId', 'type'],
+      where: { customerId: { in: ids }, type: { in: ['invoice.send', 'care.checkin'] } },
       _max: { ts: true },
     }),
   ]);
+  const lastLog = (id, type) => logs.find((l) => l.customerId === id && l.type === type)?._max.ts;
 
   // Invoice dates per customer. Older entries carry only the customer's name
   // (`source`), so fall back to matching it.
@@ -160,12 +176,59 @@ export async function listCustomerHealth(req, res) {
     }
   }
 
-  const items = customers.map((c) => customerHealth(c, {
-    sales: sales.filter((s) => s.customerId === c.id),
-    invoiceDates: invoiceDates.get(c.id) || [],
-    lastInvoiceSend: sends.find((s) => s.customerId === c.id)?._max.ts,
+  return customers.map((c) => ({
+    customer: c,
+    health: customerHealth(c, {
+      sales: sales.filter((s) => s.customerId === c.id),
+      invoiceDates: invoiceDates.get(c.id) || [],
+      lastInvoiceSend: lastLog(c.id, 'invoice.send'),
+      lastCheckIn: lastLog(c.id, 'care.checkin'),
+    }),
   }));
-  res.json({ success: true, data: { items, thresholds: THRESHOLDS } });
+}
+
+export async function listCustomerHealth(req, res) {
+  const rows = await tenantHealth(tenantIdOf(req.user));
+  res.json({ success: true, data: { items: rows.map((r) => r.health), thresholds: THRESHOLDS } });
+}
+
+// Check-ins due up to `to` for the Weekly Plan: those falling in from..to,
+// plus overdue ones from earlier weeks (the client pins them to today).
+// `userId` = one care owner's customers.
+export async function listCheckins(req, res) {
+  const { from, to, userId } = req.query;
+  const today = todayKey();
+  const rows = await tenantHealth(tenantIdOf(req.user));
+  const items = rows
+    .filter(({ health: h, customer: c }) => h.checkIn
+      && (!userId || c.careOwnerId === userId)
+      && h.checkIn.nextDue <= to
+      && (h.checkIn.nextDue >= from || h.checkIn.nextDue < today))
+    .map(({ health: h, customer: c }) => ({
+      customerId: c.id,
+      name: c.name,
+      careOwner: c.careOwner,
+      ...h.checkIn,
+    }))
+    .sort((a, b) => a.nextDue.localeCompare(b.nextDue));
+  res.json({ success: true, data: { items } });
+}
+
+// Record a check-in: a 'care.checkin' log, which counts as contact and so
+// moves the next check-in one rhythm on.
+export async function logCheckin(req, res) {
+  const tenantId = tenantIdOf(req.user);
+  const existing = await prisma.customer.findFirst({ where: { id: req.params.id, ownerId: tenantId }, select: { id: true } });
+  if (!existing) throw ApiError.notFound('Customer not found');
+  const log = await prisma.customerLog.create({
+    data: {
+      customerId: existing.id,
+      type: 'care.checkin',
+      message: req.body.note?.trim() || 'Check-in',
+      meta: { by: req.user.id },
+    },
+  });
+  res.status(201).json({ success: true, data: { log } });
 }
 
 export async function appendCustomerLog(req, res) {

@@ -3,7 +3,7 @@
 // Unpaid invoices and usage are not tracked per customer yet, so they are not
 // part of it. Thresholds live here — tune them in one place.
 
-import { todayKey } from './activities.js';
+import { todayKey, addDays } from './activities.js';
 
 // Customers in these stages are being served; prospects and churned are not.
 export const HEALTH_STAGES = ['Active', 'On hold'];
@@ -14,6 +14,9 @@ export const THRESHOLDS = {
   overdueRedDays: 14,    // any overdue work → amber; this late → red
   invoiceAmberDays: 90,  // no invoice for this long → amber
 };
+
+// Check-in rhythm → days between check-ins (Customer.careCadence).
+export const CARE_CADENCES = { monthly: 30, quarterly: 91 };
 
 // Whole days from 'YYYY-MM-DD' a to b, never negative (a future-dated
 // invoice counts as today).
@@ -26,12 +29,13 @@ const latest = (keys) => keys.filter(Boolean).sort().at(-1) || null;
 
 // One customer's health. `sales` are that customer's sales with activities;
 // `invoiceDates` are the dates of income entries tagged with the customer;
-// `lastInvoiceSend` is the newest 'invoice.send' log time.
-export function customerHealth(customer, { sales, invoiceDates, lastInvoiceSend }, today = todayKey()) {
+// `lastInvoiceSend` / `lastCheckIn` are the newest 'invoice.send' /
+// 'care.checkin' log times.
+export function customerHealth(customer, { sales, invoiceDates, lastInvoiceSend, lastCheckIn }, today = todayKey()) {
   const since = keyOf(customer.createdAt);
 
   // Last contact: anything that means someone talked to or served the customer.
-  const contactKeys = [keyOf(lastInvoiceSend)];
+  const contactKeys = [keyOf(lastInvoiceSend), keyOf(lastCheckIn)];
   for (const s of sales) {
     const at = keyOf(s.saleAt);
     if (at && at <= today) contactKeys.push(at);
@@ -82,11 +86,23 @@ export function customerHealth(customer, { sales, invoiceDates, lastInvoiceSend 
 
   const products = { count: (customer.productLinks || []).length };
 
+  // Next check-in: one rhythm after the last contact of any kind, so a
+  // meeting or a sent invoice also resets the clock.
+  const every = CARE_CADENCES[customer.careCadence];
+  const nextDue = every ? addDays(lastContact || since, every) : null;
+  const checkIn = every ? {
+    cadence: customer.careCadence,
+    ownerId: customer.careOwnerId || null,
+    lastAt: keyOf(lastCheckIn),
+    nextDue,
+    status: nextDue < today ? 'overdue' : nextDue === today ? 'due' : 'upcoming',
+  } : null;
+
   // Overall: any red signal, or two or more amber ones → red.
   const signals = [contact, overdue, invoice];
   const reds = signals.filter((s) => s.status === 'red').length;
   const ambers = signals.filter((s) => s.status === 'amber').length;
   const status = reds || ambers >= 2 ? 'red' : ambers ? 'amber' : 'green';
 
-  return { customerId: customer.id, status, contact, overdue, invoice, products };
+  return { customerId: customer.id, status, contact, overdue, invoice, products, checkIn };
 }
