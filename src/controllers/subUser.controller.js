@@ -3,6 +3,7 @@ import { prisma } from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf } from '../utils/tenant.js';
+import { forgetUser } from '../middleware/auth.middleware.js';
 
 const SUB_USER_SELECT = {
   id: true,
@@ -107,6 +108,7 @@ export async function updateSubUser(req, res) {
     data,
     select: SUB_USER_SELECT,
   });
+  forgetUser(id);
   res.json({ success: true, data: { subUser: item } });
 }
 
@@ -118,5 +120,6 @@ export async function deleteSubUser(req, res) {
     throw ApiError.notFound('Sub-user not found');
   }
   await prisma.user.delete({ where: { id } });
+  forgetUser(id);
   res.json({ success: true, data: { message: 'Sub-user deleted' } });
 }
