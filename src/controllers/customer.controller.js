@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf, assertOwnTaskChangesOnly } from '../utils/tenant.js';
 import { HEALTH_STAGES, THRESHOLDS, customerHealth } from '../utils/health.js';
-import { todayKey } from '../utils/activities.js';
+import { todayKey, dayStart, addDays } from '../utils/activities.js';
 
 const PERSON = { select: { id: true, name: true, username: true } };
 
@@ -192,13 +192,39 @@ export async function listCustomerHealth(req, res) {
   res.json({ success: true, data: { items: rows.map((r) => r.health), thresholds: THRESHOLDS } });
 }
 
-// Check-ins due up to `to` for the Weekly Plan: those falling in from..to,
-// plus overdue ones from earlier weeks (the client pins them to today).
-// `userId` = one care owner's customers.
+// Check-ins for the Weekly Plan. `items`: due up to `to` — those falling in
+// from..to plus overdue ones from earlier weeks (the client pins them to
+// today); `userId` = one care owner's customers. `done`: check-ins logged
+// in from..to (by `userId`, when given), so the week shows what was done.
 export async function listCheckins(req, res) {
   const { from, to, userId } = req.query;
+  const tenantId = tenantIdOf(req.user);
   const today = todayKey();
-  const rows = await tenantHealth(tenantIdOf(req.user));
+  const [rows, logs] = await Promise.all([
+    tenantHealth(tenantId),
+    prisma.customerLog.findMany({
+      where: {
+        type: 'care.checkin',
+        ts: { gte: dayStart(from), lt: dayStart(addDays(to, 1)) },
+        customer: { ownerId: tenantId },
+        ...(userId ? { meta: { path: ['by'], equals: userId } } : {}),
+      },
+      select: { id: true, ts: true, message: true, meta: true, customer: { select: { id: true, name: true } } },
+      orderBy: { ts: 'asc' },
+    }),
+  ]);
+  // One entry per customer per day: logging twice on a day is still one
+  // check-in on the calendar; notes are kept together.
+  const byDay = new Map();
+  for (const l of logs) {
+    const date = l.ts.toLocaleDateString('en-CA', { timeZone: 'Asia/Phnom_Penh' });
+    const key = `${l.customer.id}|${date}`;
+    const note = l.message === 'Check-in' ? null : l.message;
+    const entry = byDay.get(key) || { id: l.id, customerId: l.customer.id, name: l.customer.name, date, byId: l.meta?.by || null, notes: [] };
+    if (note) entry.notes.push(note);
+    byDay.set(key, entry);
+  }
+  const done = [...byDay.values()].map(({ notes, ...e }) => ({ ...e, note: notes.join(' · ') || null }));
   const items = rows
     .filter(({ health: h, customer: c }) => h.checkIn
       && (!userId || c.careOwnerId === userId)
@@ -211,7 +237,7 @@ export async function listCheckins(req, res) {
       ...h.checkIn,
     }))
     .sort((a, b) => a.nextDue.localeCompare(b.nextDue));
-  res.json({ success: true, data: { items } });
+  res.json({ success: true, data: { items, done } });
 }
 
 // Record a check-in: a 'care.checkin' log, which counts as contact and so
