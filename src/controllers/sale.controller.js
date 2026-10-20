@@ -52,11 +52,12 @@ async function assertLinksInTenant(tenantId, body) {
   }
 }
 
-// The officer a sale belongs to: sub-users always themselves, the owner
-// whoever they pick (default themselves).
+// The officer a sale belongs to: whoever is picked (default themselves) for
+// the owner and sub-users with 'sales.assign'; other sub-users always
+// themselves. assertLinksInTenant checks the pick is on the team.
 function officerFor(user, requested) {
   if (!requested || requested === user.id) return user.id;
-  if (!isOwner(user)) throw ApiError.forbidden('You can only add sales for yourself');
+  if (!hasPermission(user, 'sales.assign')) throw ApiError.forbidden('You can only add sales for yourself');
   return requested;
 }
 

@@ -22,11 +22,16 @@ export const PERMISSION_KEYS = [
 // Owners have implicit full access. For sub-users: menu keys are opt-in
 // (=== true); any other key is a per-menu action ability, opt-out (allowed
 // unless explicitly false), e.g. 'billing.send', 'customers.delete'.
+// Abilities that widen what a sub-user can do to other people's work are
+// opt-IN instead: off until the owner turns them on, so adding one never
+// grants it to existing sub-users. Must match OhMyCMO/src/auth/permissions.js.
+export const OPT_IN_ABILITIES = ['sales.assign'];
+
 export function hasPermission(user, key) {
   if (!user) return false;
   if (isOwner(user)) return true;
   const p = user.permissions || {};
-  if (PERMISSION_KEYS.includes(key)) return p[key] === true;
+  if (PERMISSION_KEYS.includes(key) || OPT_IN_ABILITIES.includes(key)) return p[key] === true;
   return p[key] !== false;
 }
 
