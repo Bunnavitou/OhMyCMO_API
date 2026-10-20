@@ -1,6 +1,7 @@
 import { prisma } from '../config/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf, assertOwnTaskChangesOnly } from '../utils/tenant.js';
+import { HEALTH_STAGES, THRESHOLDS, customerHealth } from '../utils/health.js';
 
 // Top-level fields that — when changed — are worth logging.
 // Nested JSON arrays (tasks/staff/files/...) generate their own
@@ -119,6 +120,52 @@ export async function deleteCustomer(req, res) {
   }
   await prisma.customer.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: { message: 'Customer deleted' } });
+}
+
+// Health of every customer being served (utils/health.js). Computed here
+// because it reads sales and activities, which the client loads per screen.
+export async function listCustomerHealth(req, res) {
+  const tenantId = tenantIdOf(req.user);
+  const customers = await prisma.customer.findMany({
+    where: { ownerId: tenantId, stage: { in: HEALTH_STAGES } },
+    select: { id: true, name: true, createdAt: true, tasks: true, productLinks: true },
+  });
+  const ids = customers.map((c) => c.id);
+  const [sales, products, sends] = await Promise.all([
+    prisma.sale.findMany({
+      where: { ownerId: tenantId, customerId: { in: ids } },
+      select: {
+        customerId: true, saleAt: true, status: true,
+        activities: { select: { status: true, dueDate: true, doneAt: true } },
+      },
+    }),
+    prisma.product.findMany({ where: { ownerId: tenantId }, select: { income: true } }),
+    prisma.customerLog.groupBy({
+      by: ['customerId'],
+      where: { customerId: { in: ids }, type: 'invoice.send' },
+      _max: { ts: true },
+    }),
+  ]);
+
+  // Invoice dates per customer. Older entries carry only the customer's name
+  // (`source`), so fall back to matching it.
+  const byName = new Map(customers.map((c) => [c.name.trim().toLowerCase(), c.id]));
+  const invoiceDates = new Map();
+  for (const p of products) {
+    for (const entry of Array.isArray(p.income) ? p.income : []) {
+      const id = entry.customerId || byName.get(String(entry.customerName || entry.source || '').trim().toLowerCase());
+      if (!id || !entry.date) continue;
+      if (!invoiceDates.has(id)) invoiceDates.set(id, []);
+      invoiceDates.get(id).push(String(entry.date).slice(0, 10));
+    }
+  }
+
+  const items = customers.map((c) => customerHealth(c, {
+    sales: sales.filter((s) => s.customerId === c.id),
+    invoiceDates: invoiceDates.get(c.id) || [],
+    lastInvoiceSend: sends.find((s) => s.customerId === c.id)?._max.ts,
+  }));
+  res.json({ success: true, data: { items, thresholds: THRESHOLDS } });
 }
 
 export async function appendCustomerLog(req, res) {

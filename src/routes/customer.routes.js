@@ -15,6 +15,7 @@ import {
   updateCustomer,
   deleteCustomer,
   appendCustomerLog,
+  listCustomerHealth,
 } from '../controllers/customer.controller.js';
 
 const router = Router();
@@ -22,6 +23,7 @@ const router = Router();
 router.use(requireAuth, requirePermission('customers'));
 
 router.get('/', asyncHandler(listCustomers));
+router.get('/health', asyncHandler(listCustomerHealth));
 router.get('/:id', validate(idParamSchema), asyncHandler(getCustomer));
 router.post('/', validate(createCustomerSchema), asyncHandler(createCustomer));
 router.patch('/:id', validate(updateCustomerSchema), asyncHandler(updateCustomer));
