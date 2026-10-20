@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate.middleware.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } from '../validators/auth.validator.js';
 import { register, login, refresh, logout, me, updateProfile, changePassword } from '../controllers/auth.controller.js';
+import { subscribe } from '../services/events.js';
 
 const router = Router();
 
@@ -12,6 +13,8 @@ router.post('/login', validate(loginSchema), asyncHandler(login));
 router.post('/refresh', asyncHandler(refresh));
 router.post('/logout', asyncHandler(logout));
 router.get('/me', requireAuth, asyncHandler(me));
+// Live stream of changes to the signed-in user (services/events.js).
+router.get('/events', requireAuth, subscribe);
 router.patch('/me', requireAuth, validate(updateProfileSchema), asyncHandler(updateProfile));
 router.post('/change-password', requireAuth, validate(changePasswordSchema), asyncHandler(changePassword));
 

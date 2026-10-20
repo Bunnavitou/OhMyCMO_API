@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf } from '../utils/tenant.js';
 import { forgetUser } from '../middleware/auth.middleware.js';
+import { notifyUser } from '../services/events.js';
 
 const SUB_USER_SELECT = {
   id: true,
@@ -109,6 +110,7 @@ export async function updateSubUser(req, res) {
     select: SUB_USER_SELECT,
   });
   forgetUser(id);
+  notifyUser(id, 'user'); // their open tabs re-read permissions now
   res.json({ success: true, data: { subUser: item } });
 }
 
@@ -121,5 +123,6 @@ export async function deleteSubUser(req, res) {
   }
   await prisma.user.delete({ where: { id } });
   forgetUser(id);
+  notifyUser(id, 'user');
   res.json({ success: true, data: { message: 'Sub-user deleted' } });
 }
