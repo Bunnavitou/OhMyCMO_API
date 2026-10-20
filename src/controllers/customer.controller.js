@@ -111,6 +111,12 @@ export async function deleteCustomer(req, res) {
   const tenantId = tenantIdOf(req.user);
   const existing = await findOwn(tenantId, req.params.id);
   if (!existing) throw ApiError.notFound('Customer not found');
+  // Sales are history — they block the delete rather than being removed
+  // with the customer (PHASE-1-ACTIVITIES.md, A5).
+  const sales = await prisma.sale.count({ where: { customerId: existing.id } });
+  if (sales > 0) {
+    throw ApiError.conflict(`Customer has ${sales} sale(s) and cannot be deleted`);
+  }
   await prisma.customer.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: { message: 'Customer deleted' } });
 }

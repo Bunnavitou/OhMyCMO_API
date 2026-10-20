@@ -79,6 +79,10 @@ model User {
   reports        Report[]
   reportLogs     ReportLog[]
   uploadedFiles  File[]
+  sales          Sale[]
+  officerSales   Sale[]          @relation("SaleOfficer")
+  activities     Activity[]
+  assignedActs   Activity[]      @relation("ActivityAssignee")
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -148,6 +152,8 @@ model Customer {
   productLinks Json     @default("[]")
 
   logs         CustomerLog[]
+  sales        Sale[]
+  fromPartner  Partner?
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -208,6 +214,8 @@ model Product {
 
   lastActivityAt DateTime?
 
+  sales      Sale[]
+
   income    Json     @default("[]")
   expenses  Json     @default("[]")
   assets    Json     @default("[]")
@@ -235,6 +243,13 @@ model Partner {
 
   tasks      Json    @default("[]")
   activities Json    @default("[]")
+
+  // A business card is a prospect until a Deal Won activity turns it into a
+  // customer (PHASE-1-ACTIVITIES.md §2); then this points at that customer.
+  customerId  String?   @unique
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  convertedAt DateTime?
+  sales       Sale[]
 
   logs      PartnerLog[]
 
@@ -362,4 +377,78 @@ model File {
 
   @@index([ownerId])
   @@index([entityType, entityId])
+}
+
+// ── Sales planner, phase 1 (PHASE-1-ACTIVITIES.md) ────────────────────────
+// A Sale is one opportunity with a customer or a prospect; its Activities
+// are the steps (call, meeting, demo, proposal, Deal Won …). With
+// activities, the sale's status follows them: all New → New, all Done →
+// Completed, else Follow-up; Cancelled is set by hand. Activity types and
+// channels are fixed lists in src/utils/activities.js.
+
+model Sale {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  saleAt      DateTime                    // date + time of the sale / first contact
+  status      String    @default("New")   // New | Follow-up | Completed | Cancelled
+  channel     String?
+  dueDate     DateTime? @db.Date           // when the follow-up is due
+  completedAt DateTime?                    // set when status becomes Completed
+  notes       String?
+
+  // The sales officer. Nullable only so deleting a sub-user keeps history.
+  userId     String?
+  user       User?     @relation("SaleOfficer", fields: [userId], references: [id], onDelete: SetNull)
+  // Who the sale is with: a customer, or a prospect (a Partner business
+  // card) — at least one is set (CHECK constraint in the migration). After a
+  // prospect converts, both are set. NoAction: a customer or partner with
+  // sales cannot be deleted (A5).
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: NoAction)
+  partnerId  String?
+  partner    Partner?  @relation(fields: [partnerId], references: [id], onDelete: NoAction)
+  productId  String?
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  activities Activity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, saleAt])
+  @@index([ownerId, userId, saleAt])
+  @@index([ownerId, status, dueDate])
+  @@index([customerId])
+  @@index([partnerId])
+}
+
+// One step of a sale. Counted for the weekly KPIs by type, and shown on the
+// week calendar by due date, so it is a table, not JSON (§4 rule).
+model Activity {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  saleId  String
+  sale    Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  type     String                     // an ACTIVITY_TYPES key, or 'Other'
+  title    String?                    // details; required for 'Other'
+  status   String    @default("New")  // New | In progress | Done
+  dueDate  DateTime? @db.Date
+  doneAt   DateTime?                  // set when status becomes Done
+  position Int       @default(0)      // order within the sale
+
+  // Person in charge — anyone on the team.
+  assigneeId String?
+  assignee   User?   @relation("ActivityAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([saleId, position])
+  @@index([ownerId, dueDate])
+  @@index([ownerId, assigneeId, dueDate])
+  @@index([ownerId, type, doneAt])
 }

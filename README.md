@@ -173,6 +173,36 @@ The refresh token is set as an httpOnly cookie scoped to `/api/auth`.
 | PATCH  | `/:id` | self / ADMIN | role change requires ADMIN            |
 | DELETE | `/:id` | self / ADMIN |                                       |
 
+### Sales — `/api/sales`
+
+A sale is one opportunity with a customer or a prospect (Partner); its
+activities are the steps (call, meeting, demo, Deal Won …). See
+`PHASE-1-ACTIVITIES.md`. Needs the `sales` permission. Everyone sees the
+whole team; a sub-user may only create or change their own sales. `saleAt` is
+an ISO timestamp (the app sends `+07:00`); other dates are `YYYY-MM-DD`
+(Asia/Phnom_Penh).
+
+| Method | Path                  | Notes                                                        |
+|-------:|-----------------------|--------------------------------------------------------------|
+| GET    | `/`                   | `?from=&to=&userId=&customerId=&partnerId=&activityType=&status=&channel=&q=&page=&limit=` → `{ items, total }` (limit ≤ 500, default 25); each sale includes its `activities` |
+| GET    | `/dashboard`          | `?userId=&customerId=&from=&to=` → `{ totals: { total, new, followUp, completed, rejected, overdue }, wonByMonth: { 'YYYY-MM': n } }` — deals won = Done Deal Won activities by month done |
+| GET    | `/followups`          | `?userId=` → `{ overdue, today, upcoming }` (status `Follow-up`) |
+| GET    | `/activities`         | `?from=&to=&userId=` — activities due in the range, with their sale (week calendar); `userId` = person in charge, or the officer when nobody is |
+| PATCH  | `/activities/:id`     | `{ status?, dueDate?, assigneeId?, title? }` — by the officer, the person in charge or the owner |
+| GET    | `/:id`                |                                                              |
+| POST   | `/`                   | `{ saleAt, customerId \| partnerId, status?, channel?, dueDate?, notes?, productId?, userId?, activities?: [{ type, title?, status?, dueDate?, assigneeId? }] }` |
+| PATCH  | `/:id`                | same fields; `activities`, when sent, is the full list (missing rows are deleted, rows with a known `id` updated) |
+| DELETE | `/:id`                | needs `sales.delete`; deletes its activities                 |
+| POST   | `/:id/win`            | prospect's sale won: `{ customerId }` (use existing) or `{ name, contact?, phone? }`, plus `productId?` → creates/links the customer, sale Completed with a Done Deal Won → `{ sale, conversion }` |
+
+Rules: with activities, the sale's status follows them (all New → New, all
+Done → Completed, else Follow-up; Cancelled is manual). Follow-up needs a due
+date — its own or the earliest unfinished activity's. A won sale (Done Deal Won) with a product adds that product
+to the customer's `productLinks` (once, logged). A prospect becomes a
+customer only through `POST /:id/win` or `POST /api/partners/:id/convert`
+(same body, needs `customers` too) — never as a side effect of saving. A
+customer or partner with sales cannot be deleted (409).
+
 ### Error shape
 
 ```json

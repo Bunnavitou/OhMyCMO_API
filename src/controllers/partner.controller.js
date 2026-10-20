@@ -99,6 +99,11 @@ export async function deletePartner(req, res) {
   const tenantId = tenantIdOf(req.user);
   const existing = await findOwn(tenantId, req.params.id);
   if (!existing) throw ApiError.notFound('Partner not found');
+  // Sales with this prospect are history — they block the delete.
+  const sales = await prisma.sale.count({ where: { partnerId: existing.id } });
+  if (sales > 0) {
+    throw ApiError.conflict(`Partner has ${sales} sale(s) and cannot be deleted`);
+  }
   await prisma.partner.delete({ where: { id: req.params.id } });
   res.json({ success: true, data: { message: 'Partner deleted' } });
 }
