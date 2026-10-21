@@ -250,6 +250,8 @@ model Partner {
   telegram    String?
   cardImage   Json?
   telegramQr  Json?
+  // Free text: who they are and the business purpose (what they're after).
+  notes       String?
 
   tasks      Json    @default("[]")
   activities Json    @default("[]")

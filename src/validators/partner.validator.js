@@ -25,6 +25,7 @@ const partnerCore = {
   email: z.string().email().nullable().or(z.literal('')).optional(),
   phone: z.string().max(40).nullable().optional(),
   telegram: z.string().max(120).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
   cardImage: cardImageSchema,
   telegramQr: cardImageSchema,
   tasks: jsonArray.optional(),
