@@ -487,13 +487,21 @@ export async function dashboard(req, res) {
     ? { ...(from ? { gte: dayStart(from) } : {}), ...(to ? { lt: dayStart(addDays(to, 1)) } : {}) }
     : null;
 
-  const [byStatus, overdue, won] = await Promise.all([
-    prisma.sale.groupBy({ by: ['status'], where: { ...who, ...(range ? { saleAt: range } : {}) }, _count: true }),
-    prisma.sale.count({ where: { ...who, ...(range ? { saleAt: range } : {}), status: 'Follow-up', dueDate: { lt: toDbDate(todayKey()) } } }),
+  const inRange = { ...who, ...(range ? { saleAt: range } : {}) };
+  const [byStatus, overdue, won, wonSales, lostSales] = await Promise.all([
+    prisma.sale.groupBy({ by: ['status'], where: inRange, _count: true }),
+    prisma.sale.count({ where: { ...inRange, status: 'Follow-up', dueDate: { lt: toDbDate(todayKey()) } } }),
     prisma.activity.findMany({
       where: { ownerId: tenantId, type: 'Deal Won', status: 'Done', doneAt: { not: null, ...(range || {}) }, sale: who },
-      select: { doneAt: true },
+      select: {
+        doneAt: true,
+        sale: { select: { id: true, customerId: true, partnerId: true, customer: INCLUDE.customer, partner: INCLUDE.partner, product: { select: { id: true, name: true } }, user: PERSON } },
+      },
+      orderBy: { doneAt: 'desc' },
     }),
+    // Results of the sales counted on the cards (same saleAt range).
+    prisma.sale.count({ where: { ...inRange, ...WON } }),
+    prisma.sale.count({ where: { ...inRange, ...LOST } }),
   ]);
   const count = Object.fromEntries(byStatus.map((r) => [r.status, r._count]));
   const months = {};
@@ -510,9 +518,14 @@ export async function dashboard(req, res) {
         followUp: count['Follow-up'] || 0,
         completed: count.Completed || 0,
         rejected: count.Cancelled || 0,
+        won: wonSales,
+        lost: lostSales,
         overdue,
       },
       wonByMonth: months, // { 'YYYY-MM': count }
+      // The latest deals won, newest first: who bought what, when, and from whom.
+      wins: won.slice(0, 10).map((a) => ({ wonAt: a.doneAt, ...a.sale })),
+      winsTotal: won.length,
     },
   });
 }
