@@ -48,6 +48,8 @@ export const listSalesSchema = z.object({
     partnerId: z.string().min(1).optional(),
     activityType: z.enum(Object.keys(ACTIVITY_TYPES)).optional(), // sales having such an activity
     status: z.enum(STATUSES).optional(),
+    // The deal's result: a Done Deal Won / Deal Lost activity, or neither yet.
+    outcome: z.enum(['won', 'lost', 'open']).optional(),
     channel: z.enum(CHANNELS).optional(),
     q: z.string().trim().max(100).optional(),
     page: z.coerce.number().int().min(1).default(1),

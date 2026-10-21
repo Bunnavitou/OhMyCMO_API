@@ -251,9 +251,15 @@ async function findOwn(tenantId, id) {
 
 // ── Sales
 
+// A sale's result, from its activities: won / lost once a Deal Won / Deal
+// Lost activity is Done, open until then.
+const WON = { activities: { some: { type: 'Deal Won', status: 'Done' } } };
+const LOST = { activities: { some: { type: 'Deal Lost', status: 'Done' } } };
+const OUTCOME_WHERE = { won: WON, lost: LOST, open: { NOT: [WON, LOST] } };
+
 export async function listSales(req, res) {
   const tenantId = tenantIdOf(req.user);
-  const { from, to, userId, customerId, partnerId, activityType, status, channel, q, page, limit } = req.query;
+  const { from, to, userId, customerId, partnerId, activityType, status, outcome, channel, q, page, limit } = req.query;
   const where = {
     ownerId: tenantId,
     ...(from || to
@@ -264,6 +270,7 @@ export async function listSales(req, res) {
     ...(partnerId ? { partnerId } : {}),
     ...(activityType ? { activities: { some: { type: activityType } } } : {}),
     ...(status ? { status } : {}),
+    ...(outcome ? { AND: [OUTCOME_WHERE[outcome]] } : {}),
     ...(channel ? { channel } : {}),
     ...(q
       ? {
