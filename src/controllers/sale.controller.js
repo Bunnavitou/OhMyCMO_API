@@ -20,7 +20,7 @@ import {
 const PERSON = { select: { id: true, name: true, username: true, role: true } }; // role: the main account shows as "Admin"
 const INCLUDE = {
   customer: { select: { id: true, name: true, contact: true, phone: true } },
-  partner: { select: { id: true, name: true, company: true, phone: true, customerId: true } },
+  partner: { select: { id: true, name: true, company: true, phone: true, customerId: true, notes: true } },
   product: { select: { id: true, name: true } },
   user: PERSON,
   activities: { orderBy: { position: 'asc' }, include: { assignee: PERSON } },
