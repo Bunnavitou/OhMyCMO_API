@@ -133,6 +133,8 @@ model Customer {
   address      String?
   vatTin       String?
   stage        String   @default("Prospect")
+  // Free text about the account: who they are, what business they need.
+  notes        String?
   profileImage Json?
   pinned       Boolean  @default(false)
 

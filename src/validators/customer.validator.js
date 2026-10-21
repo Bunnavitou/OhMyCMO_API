@@ -64,6 +64,7 @@ const customerCore = {
   address: z.string().max(500).nullable().optional(),
   vatTin: z.string().max(80).nullable().optional(),
   stage: z.string().max(40).optional(),
+  notes: z.string().max(2000).nullable().optional(),
   groupId: z.string().min(1).nullable().optional(),
   profileImage: profileImageSchema,
   // Invoice email defaults

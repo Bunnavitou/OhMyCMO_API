@@ -10,7 +10,7 @@ const PERSON = { select: { id: true, name: true, username: true, role: true } };
 // Nested JSON arrays (tasks/staff/files/...) generate their own
 // per-action logs at higher granularity from the frontend's existing
 // "appendCustomerLog" call paths, so we don't double-log them here.
-const LOGGABLE_TOP_FIELDS = ['name', 'industry', 'contact', 'email', 'phone', 'address', 'vatTin', 'stage', 'groupId', 'careCadence', 'careOwnerId'];
+const LOGGABLE_TOP_FIELDS = ['name', 'industry', 'contact', 'email', 'phone', 'address', 'vatTin', 'stage', 'groupId', 'careCadence', 'careOwnerId', 'notes'];
 
 // Reject groupId values that don't belong to the caller's tenant.
 async function ensureGroupBelongsToTenant(tenantId, groupId) {
