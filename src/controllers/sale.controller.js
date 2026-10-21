@@ -17,7 +17,7 @@ import {
 // any sales officer. A person in charge of an activity may update that
 // activity from the calendar.
 
-const PERSON = { select: { id: true, name: true, username: true } };
+const PERSON = { select: { id: true, name: true, username: true, role: true } }; // role: the main account shows as "Admin"
 const INCLUDE = {
   customer: { select: { id: true, name: true, contact: true, phone: true } },
   partner: { select: { id: true, name: true, company: true, phone: true, customerId: true } },

@@ -4,7 +4,7 @@ import { tenantIdOf, assertOwnTaskChangesOnly } from '../utils/tenant.js';
 import { HEALTH_STAGES, THRESHOLDS, customerHealth } from '../utils/health.js';
 import { todayKey, dayStart, addDays } from '../utils/activities.js';
 
-const PERSON = { select: { id: true, name: true, username: true } };
+const PERSON = { select: { id: true, name: true, username: true, role: true } }; // role: the main account shows as "Admin"
 
 // Top-level fields that — when changed — are worth logging.
 // Nested JSON arrays (tasks/staff/files/...) generate their own
