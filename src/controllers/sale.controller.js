@@ -3,7 +3,7 @@ import { prisma } from '../config/prisma.js';
 import { ApiError } from '../utils/ApiError.js';
 import { tenantIdOf, isOwner, hasPermission } from '../utils/tenant.js';
 import {
-  todayKey, dayStart, toDbDate, addDays, followupStatus, statusFromActivities, nextActivityDue,
+  todayKey, dayStart, toDbDate, addDays, followupStatus, followupDue, statusFromActivities, nextActivityDue,
 } from '../utils/activities.js';
 
 // Sales (PHASE-1-ACTIVITIES.md). A sale is one opportunity with a customer,
@@ -26,7 +26,8 @@ const INCLUDE = {
   activities: { orderBy: { position: 'asc' }, include: { assignee: PERSON } },
 };
 
-const withFollowup = (s, today) => ({ ...s, followupStatus: followupStatus(s, today) });
+// Each sale carries its effective follow-up date (activities first) and state.
+const withFollowup = (s, today) => ({ ...s, followupDue: followupDue(s), followupStatus: followupStatus(s, today) });
 const dateOf = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : d || null);
 
 // Every linked id must belong to the caller's tenant.
@@ -306,16 +307,15 @@ export async function listFollowups(req, res) {
   const tenantId = tenantIdOf(req.user);
   const { userId } = req.query;
   const items = await prisma.sale.findMany({
-    where: { ownerId: tenantId, status: 'Follow-up', dueDate: { not: null }, ...(userId ? { userId } : {}) },
+    where: { ownerId: tenantId, status: 'Follow-up', ...(userId ? { userId } : {}) },
     include: INCLUDE,
-    orderBy: [{ dueDate: 'asc' }, { saleAt: 'asc' }],
+    orderBy: [{ saleAt: 'asc' }],
   });
   const today = todayKey();
   const groups = { overdue: [], today: [], upcoming: [] };
-  for (const s of items) {
-    const row = withFollowup(s, today);
-    groups[row.followupStatus.toLowerCase()].push(row);
-  }
+  const rows = items.map((s) => withFollowup(s, today)).filter((r) => r.followupDue)
+    .sort((a, b) => a.followupDue.localeCompare(b.followupDue));
+  for (const row of rows) groups[row.followupStatus.toLowerCase()].push(row);
   res.json({ success: true, data: groups });
 }
 
@@ -490,7 +490,11 @@ export async function dashboard(req, res) {
   const inRange = { ...who, ...(range ? { saleAt: range } : {}) };
   const [byStatus, overdue, won, wonSales, lostSales] = await Promise.all([
     prisma.sale.groupBy({ by: ['status'], where: inRange, _count: true }),
-    prisma.sale.count({ where: { ...inRange, status: 'Follow-up', dueDate: { lt: toDbDate(todayKey()) } } }),
+    // Overdue by the effective follow-up date (activities first), counted here.
+    prisma.sale.findMany({
+      where: { ...inRange, status: 'Follow-up' },
+      select: { status: true, dueDate: true, activities: { select: { status: true, dueDate: true } } },
+    }).then((list) => list.filter((s) => followupStatus(s) === 'Overdue').length),
     prisma.activity.findMany({
       where: { ownerId: tenantId, type: 'Deal Won', status: 'Done', doneAt: { not: null, ...(range || {}) }, sale: who },
       select: {

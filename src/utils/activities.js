@@ -67,11 +67,18 @@ export const addDays = (key, n) => {
   return dateKey(d);
 };
 
-// Follow-up state (Excel BR-02): only a Follow-up activity with a due date
-// has one; Completed and Cancelled are closed.
-export function followupStatus(activity, today = todayKey()) {
-  if (activity.status !== 'Follow-up') return null;
-  const due = dateKey(activity.dueDate);
+// The date a Follow-up sale is next due: its earliest open activity's due
+// date when it has one — the planned next step — else the sale's own due
+// date, a fallback for sales without dated activities. Completed and
+// Cancelled sales have none.
+export function followupDue(sale) {
+  if (sale.status !== 'Follow-up') return null;
+  return nextActivityDue(sale.activities || []) || dateKey(sale.dueDate);
+}
+
+// Follow-up state (Excel BR-02) from that date.
+export function followupStatus(sale, today = todayKey()) {
+  const due = followupDue(sale);
   if (!due) return null;
   if (due < today) return 'Overdue';
   if (due === today) return 'Today';
