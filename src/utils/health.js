@@ -15,6 +15,8 @@ export const THRESHOLDS = {
   invoiceAmberDays: 90,  // no invoice for this long → amber
   paymentRedDays: 30,    // an unpaid invoice past its due date → amber; this late → red
   renewalWarnDays: 60,   // an agreement ending within this many days → amber; ended → red
+  requestAmberDays: 7,   // a customer request open this long → amber
+  requestRedDays: 21,    //                                   → red
 };
 
 // Check-in rhythm → days between check-ins (Customer.careCadence).
@@ -89,6 +91,26 @@ export function customerHealth(customer, { sales, invoices = [], lastInvoiceSend
 
   const products = { count: (customer.productLinks || []).length };
 
+  // Requests: customer tasks of kind 'request' (care feature 2). Open ones age
+  // from their register date; done ones give response and resolution times
+  // (last 90 days) — respondedAt is stamped when a request first leaves Todo.
+  const reqs = (customer.tasks || []).filter((t) => t.kind === 'request')
+  const open = reqs.filter((t) => t.status !== 'Done')
+  const age = (t) => daysBetween(t.registerDate || since, today)
+  const oldestOpen = open.length ? Math.max(...open.map(age)) : 0
+  const recent = reqs.filter((t) => t.status === 'Done' && t.doneAt && keyOf(t.doneAt) >= addDays(today, -90))
+  const avg = (xs) => (xs.length ? Math.round((xs.reduce((n, x) => n + x, 0) / xs.length) * 10) / 10 : null)
+  const requests = {
+    openCount: open.length,
+    oldestDays: oldestOpen,
+    avgResponseDays: avg(reqs.filter((t) => t.respondedAt && t.registerDate && keyOf(t.respondedAt) >= addDays(today, -90))
+      .map((t) => daysBetween(t.registerDate, keyOf(t.respondedAt)))),
+    avgResolveDays: avg(recent.filter((t) => t.registerDate).map((t) => daysBetween(t.registerDate, keyOf(t.doneAt)))),
+    status: !open.length ? 'green'
+      : oldestOpen >= THRESHOLDS.requestRedDays ? 'red'
+        : oldestOpen >= THRESHOLDS.requestAmberDays ? 'amber' : 'green',
+  }
+
   // Payments: invoices tracked as unpaid (payment: 'unpaid') past their due
   // date. Older invoices carry no payment field and are not tracked.
   const late = invoices
@@ -128,10 +150,10 @@ export function customerHealth(customer, { sales, invoices = [], lastInvoiceSend
   } : null;
 
   // Overall: any red signal, or two or more amber ones → red.
-  const signals = [contact, overdue, invoice, payments, renewal];
+  const signals = [contact, overdue, invoice, payments, renewal, requests];
   const reds = signals.filter((s) => s.status === 'red').length;
   const ambers = signals.filter((s) => s.status === 'amber').length;
   const status = reds || ambers >= 2 ? 'red' : ambers ? 'amber' : 'green';
 
-  return { customerId: customer.id, status, contact, overdue, invoice, payments, renewal, products, checkIn };
+  return { customerId: customer.id, status, contact, overdue, invoice, payments, renewal, requests, products, checkIn };
 }
