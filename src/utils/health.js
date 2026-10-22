@@ -13,6 +13,8 @@ export const THRESHOLDS = {
   contactRedDays: 60,    //                          → red
   overdueRedDays: 14,    // any overdue work → amber; this late → red
   invoiceAmberDays: 90,  // no invoice for this long → amber
+  paymentRedDays: 30,    // an unpaid invoice past its due date → amber; this late → red
+  renewalWarnDays: 60,   // an agreement ending within this many days → amber; ended → red
 };
 
 // Check-in rhythm → days between check-ins (Customer.careCadence).
@@ -28,10 +30,11 @@ const keyOf = (d) => (d ? new Date(d).toLocaleDateString('en-CA', { timeZone: 'A
 const latest = (keys) => keys.filter(Boolean).sort().at(-1) || null;
 
 // One customer's health. `sales` are that customer's sales with activities;
-// `invoiceDates` are the dates of income entries tagged with the customer;
+// `invoices` are the income entries tagged with the customer;
 // `lastInvoiceSend` / `lastCheckIn` are the newest 'invoice.send' /
 // 'care.checkin' log times.
-export function customerHealth(customer, { sales, invoiceDates, lastInvoiceSend, lastCheckIn }, today = todayKey()) {
+export function customerHealth(customer, { sales, invoices = [], lastInvoiceSend, lastCheckIn }, today = todayKey()) {
+  const invoiceDates = invoices.map((e) => String(e.date || '').slice(0, 10)).filter(Boolean);
   const since = keyOf(customer.createdAt);
 
   // Last contact: anything that means someone talked to or served the customer.
@@ -86,6 +89,32 @@ export function customerHealth(customer, { sales, invoiceDates, lastInvoiceSend,
 
   const products = { count: (customer.productLinks || []).length };
 
+  // Payments: invoices tracked as unpaid (payment: 'unpaid') past their due
+  // date. Older invoices carry no payment field and are not tracked.
+  const late = invoices
+    .filter((e) => e.payment === 'unpaid' && e.dueDate && e.dueDate < today)
+    .map((e) => ({ days: daysBetween(e.dueDate, today), amount: Number(e.amount || 0) }));
+  const payments = {
+    overdueCount: late.length,
+    overdueAmount: late.reduce((n, x) => n + x.amount, 0),
+    oldestDays: late.length ? Math.max(...late.map((x) => x.days)) : 0,
+    unpaidCount: invoices.filter((e) => e.payment === 'unpaid').length,
+  };
+  payments.status = !late.length ? 'green' : payments.oldestDays >= THRESHOLDS.paymentRedDays ? 'red' : 'amber';
+
+  // Renewal: the agreement ending soonest (endDate on Customer.agreements).
+  const ends = (customer.agreements || []).map((a) => a.endDate).filter(Boolean).sort();
+  const nextEnd = ends.find((d) => d >= today) || null;
+  const lastEnded = [...ends].reverse().find((d) => d < today) || null;
+  const renewal = { endDate: nextEnd || lastEnded, days: null, status: 'green' };
+  if (nextEnd) {
+    renewal.days = daysBetween(today, nextEnd);
+    if (renewal.days <= THRESHOLDS.renewalWarnDays) renewal.status = 'amber';
+  } else if (lastEnded) {
+    renewal.days = -daysBetween(lastEnded, today);
+    renewal.status = 'red'; // every agreement has ended and none renews
+  }
+
   // Next check-in: one rhythm after the last contact of any kind, so a
   // meeting or a sent invoice also resets the clock.
   const every = CARE_CADENCES[customer.careCadence];
@@ -99,10 +128,10 @@ export function customerHealth(customer, { sales, invoiceDates, lastInvoiceSend,
   } : null;
 
   // Overall: any red signal, or two or more amber ones → red.
-  const signals = [contact, overdue, invoice];
+  const signals = [contact, overdue, invoice, payments, renewal];
   const reds = signals.filter((s) => s.status === 'red').length;
   const ambers = signals.filter((s) => s.status === 'amber').length;
   const status = reds || ambers >= 2 ? 'red' : ambers ? 'amber' : 'green';
 
-  return { customerId: customer.id, status, contact, overdue, invoice, products, checkIn };
+  return { customerId: customer.id, status, contact, overdue, invoice, payments, renewal, products, checkIn };
 }

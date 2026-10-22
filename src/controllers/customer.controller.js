@@ -141,7 +141,7 @@ async function tenantHealth(tenantId) {
   const customers = await prisma.customer.findMany({
     where: { ownerId: tenantId, stage: { in: HEALTH_STAGES } },
     select: {
-      id: true, name: true, createdAt: true, tasks: true, productLinks: true,
+      id: true, name: true, createdAt: true, tasks: true, productLinks: true, agreements: true,
       careCadence: true, careOwnerId: true, careOwner: PERSON,
     },
   });
@@ -163,16 +163,16 @@ async function tenantHealth(tenantId) {
   ]);
   const lastLog = (id, type) => logs.find((l) => l.customerId === id && l.type === type)?._max.ts;
 
-  // Invoice dates per customer. Older entries carry only the customer's name
+  // Invoices per customer. Older entries carry only the customer's name
   // (`source`), so fall back to matching it.
   const byName = new Map(customers.map((c) => [c.name.trim().toLowerCase(), c.id]));
-  const invoiceDates = new Map();
+  const invoices = new Map();
   for (const p of products) {
     for (const entry of Array.isArray(p.income) ? p.income : []) {
       const id = entry.customerId || byName.get(String(entry.customerName || entry.source || '').trim().toLowerCase());
       if (!id || !entry.date) continue;
-      if (!invoiceDates.has(id)) invoiceDates.set(id, []);
-      invoiceDates.get(id).push(String(entry.date).slice(0, 10));
+      if (!invoices.has(id)) invoices.set(id, []);
+      invoices.get(id).push(entry);
     }
   }
 
@@ -180,7 +180,7 @@ async function tenantHealth(tenantId) {
     customer: c,
     health: customerHealth(c, {
       sales: sales.filter((s) => s.customerId === c.id),
-      invoiceDates: invoiceDates.get(c.id) || [],
+      invoices: invoices.get(c.id) || [],
       lastInvoiceSend: lastLog(c.id, 'invoice.send'),
       lastCheckIn: lastLog(c.id, 'care.checkin'),
     }),
